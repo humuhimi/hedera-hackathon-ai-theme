@@ -52,7 +52,7 @@ export const sessionManager = {
    * Check if session is expired
    */
   isExpired(session: AuthSession): boolean {
-    return Date.now() > session.expiresAt;
+    return new Date() > new Date(session.expiresAt);
   },
 
   /**

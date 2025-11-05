@@ -154,6 +154,40 @@ export class WalletConnector {
   /**
    * Disconnect from wallet
    */
+  /**
+   * Sign message using connected wallet
+   */
+  async signMessage(message: string): Promise<string> {
+    if (!this.dAppConnector || !this.session) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      const accountId = this.getAccountIdFromSession();
+
+      // Sign message using hedera_signMessage
+      const result = await this.dAppConnector.signMessage({
+        signerAccountId: `hedera:${this.network}:${accountId}`,
+        message: message
+      });
+
+      if (!result.signatureMap) {
+        throw new Error('No signature returned');
+      }
+
+      // Convert base64 signature to hex
+      const binaryString = atob(result.signatureMap);
+      const hexSignature = Array.from(binaryString)
+        .map(char => char.charCodeAt(0).toString(16).padStart(2, '0'))
+        .join('');
+
+      return hexSignature;
+    } catch (error) {
+      console.error('❌ Message signing failed:', error);
+      throw error;
+    }
+  }
+
   async disconnect(): Promise<void> {
     if (this.dAppConnector && this.session) {
       try {

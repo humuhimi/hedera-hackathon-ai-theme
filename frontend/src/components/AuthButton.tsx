@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { SignatureModal } from './SignatureModal';
 
 export const AuthButton = () => {
-  const { login, isLoading, error } = useAuth();
+  const { login, isLoading, loginStatus, error } = useAuth();
   const [isConnecting, setIsConnecting] = useState(false);
 
   const handleConnect = async () => {
@@ -17,8 +18,34 @@ export const AuthButton = () => {
     }
   };
 
+  const handleModalClose = () => {
+    // User cancelled the signature request
+    setIsConnecting(false);
+  };
+
+  const getStatusMessage = () => {
+    switch (loginStatus) {
+      case 'connecting':
+        return '🔗 ウォレット接続中...';
+      case 'authenticating':
+        return '🔐 認証中...';
+      case 'success':
+        return '✅ 認証成功！';
+      default:
+        return null;
+    }
+  };
+
+  const statusMessage = getStatusMessage();
+
   return (
-    <div className="flex flex-col items-center space-y-4">
+    <>
+      <SignatureModal 
+        isOpen={loginStatus === 'waiting-signature'} 
+        onClose={handleModalClose}
+      />
+      
+      <div className="flex flex-col items-center space-y-4">
       <button
         onClick={handleConnect}
         disabled={isLoading || isConnecting}
@@ -69,12 +96,19 @@ export const AuthButton = () => {
         ※メールアドレス・パスワード不要
       </p>
 
+      {statusMessage && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg max-w-md">
+          <p className="text-sm font-medium">{statusMessage}</p>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg max-w-md">
           <p className="text-sm font-medium">接続エラー</p>
           <p className="text-sm">{error}</p>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };

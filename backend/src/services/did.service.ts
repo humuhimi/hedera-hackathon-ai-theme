@@ -84,7 +84,7 @@ async function getOrCreateIdentityNetwork(client: Client): Promise<HcsIdentityNe
   // Create new Identity Network
   console.log('🏗️  Creating new Identity Network...');
 
-  const operatorKey = PrivateKey.fromStringECDSA(OPERATOR_KEY!);
+  const operatorKey = PrivateKey.fromString(OPERATOR_KEY!);
   const operatorPublicKey = operatorKey.publicKey;
 
   const identityNetwork = await new HcsIdentityNetworkBuilder()

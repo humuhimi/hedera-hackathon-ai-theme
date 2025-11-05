@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { generateToken, JWTPayload } from './jwt.service.js';
 import { createAuthMessage } from '../utils/signature.js';
 import crypto from 'crypto';
+import { verifyMessageSignature } from '../utils/verifySignature.js';
 
 const prisma = new PrismaClient();
 
@@ -94,68 +95,33 @@ export function consumeAuthChallenge(accountId: string): void {
 }
 
 /**
- * Verify wallet signature for authentication
- * Uses server-generated message from cache (client cannot tamper)
- * Fetches the account's public key from Hedera network (not client-provided)
- * Supports both Ed25519 and ECDSA(secp256k1) key types
- *
- * @param accountId Hedera account ID
- * @param signature Signature from wallet (hex string)
- *   - Ed25519: 64 bytes (128 hex chars) - R || S
- *   - ECDSA: 64-72 bytes (128-144 hex chars) - Can be DER encoded or raw r || s
- * @returns true if signature is valid
+ * Verify wallet signature using official Hedera Wallet Connect function
  */
 export async function verifyAuthSignature(
   accountId: string,
   signature: string
 ): Promise<boolean> {
-  const cached = getAuthChallenge(accountId);
-  if (!cached) {
-    return false;
-  }
-
-  // Validate signature format: must be hex string
-  if (!/^[0-9a-fA-F]+$/.test(signature)) {
-    console.error('Invalid signature format: must be hex string');
-    return false;
-  }
-
   try {
-    // Get the account's actual public key and key type from Hedera network
-    // This prevents clients from providing a fake public key
-    const { getAccountPublicKey } = await import('../utils/hedera.js');
-    const { publicKey, keyType } = await getAccountPublicKey(accountId);
-
-    // Validate signature length based on key type
-    if (keyType === 'ED25519') {
-      // Ed25519: Must be exactly 64 bytes (128 hex chars)
-      if (signature.length !== 128) {
-        console.error(`Invalid Ed25519 signature length: ${signature.length} (expected 128)`);
-        return false;
-      }
-    } else if (keyType === 'ECDSA_SECP256K1') {
-      // ECDSA: Typically 64-72 bytes (128-144 hex chars)
-      // Can be DER encoded (variable length) or raw r || s (64 bytes)
-      if (signature.length < 128 || signature.length > 144) {
-        console.error(`Invalid ECDSA signature length: ${signature.length} (expected 128-144)`);
-        return false;
-      }
+    const cached = getAuthChallenge(accountId);
+    if (!cached) {
+      return false;
     }
 
-    // Verify signature using network-resolved public key
-    const messageBytes = Buffer.from(cached.message, 'utf8');
-    const signatureBytes = Buffer.from(signature, 'hex');
+    const { getAccountPublicKey } = await import('../utils/hedera.js');
+    const { publicKey } = await getAccountPublicKey(accountId);
 
-    return publicKey.verify(messageBytes, signatureBytes);
+    const signatureBytes = Buffer.from(signature, 'hex');
+    const base64Signature = signatureBytes.toString('base64');
+
+    const isValid = verifyMessageSignature(cached.message, base64Signature, publicKey);
+    return isValid;
   } catch (error) {
-    console.error('Signature verification error:', error);
     return false;
   }
 }
 
 /**
  * Authenticate user with Hedera account
- * Simply creates/finds user by accountId (signature verified separately)
  */
 export async function authenticateWithHedera(
   accountId: string,

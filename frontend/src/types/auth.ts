@@ -12,9 +12,9 @@ export interface User {
 export interface AuthSession {
   userId: string;
   accountId: string;
-  did: string;  // Hedera DID
+  did?: string;  // Hedera DID (optional, registered separately)
   token: string;
-  expiresAt: number;
+  expiresAt: string;  // ISO 8601 timestamp
   userName?: string;
 }
 

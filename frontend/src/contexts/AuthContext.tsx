@@ -4,11 +4,15 @@ import { walletConnector } from '../services/WalletConnector';
 import { sessionManager } from '../services/sessionManager';
 import { api } from '../services/api';
 
+type LoginStatus = 'idle' | 'connecting' | 'waiting-signature' | 'authenticating' | 'success' | 'error';
+
 interface AuthContextType {
   user: User | null;
   session: AuthSession | null;
   isAuthenticated: boolean;
+  isInitializing: boolean;
   isLoading: boolean;
+  loginStatus: LoginStatus;
   login: () => Promise<void>;
   logout: () => void;
   error: string | null;
@@ -19,7 +23,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loginStatus, setLoginStatus] = useState<LoginStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
   // Check for existing session on mount
@@ -28,26 +34,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const existingSession = sessionManager.get();
 
       if (existingSession) {
-        // Verify session with backend
-        const isValid = await api.verifySession(existingSession.token);
-
-        if (isValid) {
+        try {
+          // Verify session by fetching user data
+          const userData = await api.getMe(existingSession.token);
           setSession(existingSession);
-          // Note: In production, you'd fetch full user data here
-          setUser({
-            id: existingSession.userId,
-            hederaAccountId: existingSession.accountId,
-            did: existingSession.did,
-            userName: existingSession.userName,
-            createdAt: new Date().toISOString(),
-            lastLoginAt: new Date().toISOString()
-          });
-        } else {
+          setUser(userData);
+        } catch (error) {
+          // Session invalid, clear it
           sessionManager.clear();
+          console.log('Session expired or invalid');
         }
       }
 
-      setIsLoading(false);
+      setIsInitializing(false);
     };
 
     initAuth();
@@ -57,28 +56,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       setError(null);
+      setLoginStatus('connecting');
 
-      // 1. Connect to HashPack (or demo mode)
+      // 1. Connect to wallet
       const { accountId } = await walletConnector.connect();
       console.log('🔗 Wallet connected:', accountId);
 
-      // 2. Authenticate with backend (auto signup/login)
-      const result = await api.authenticate(accountId);
-      console.log('✅ Authenticated:', result.isNewUser ? 'New user' : 'Existing user');
+      // 2. Get authentication challenge
+      const challengeData = await api.getChallenge(accountId);
+      console.log('🎯 Challenge received');
 
-      // 3. Save session
-      sessionManager.save(result.session);
-      setSession(result.session);
+      // 3. Sign the authentication message
+      setLoginStatus('waiting-signature');
+      const signature = await walletConnector.signMessage(challengeData.message);
+      console.log('✍️ Message signed');
+
+      // 4. Authenticate with backend
+      setLoginStatus('authenticating');
+      const result = await api.authenticate(accountId, signature);
+      console.log('✅ Authenticated');
+
+      // 5. Save session
+      const newSession = {
+        token: result.token,
+        userId: result.user.id,
+        accountId: result.user.hederaAccountId,
+        did: result.user.did,
+        userName: result.user.userName,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      };
+      sessionManager.save(newSession);
+      setSession(newSession);
       setUser(result.user);
-
-      // 4. Handle onboarding for new users
-      if (result.isNewUser) {
-        // In a real app, navigate to onboarding
-        console.log('🎉 New user! Show onboarding flow');
-      }
+      setLoginStatus('success');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
       setError(errorMessage);
+      setLoginStatus('error');
       console.error('❌ Login error:', err);
       throw err;
     } finally {
@@ -92,13 +106,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setSession(null);
     setError(null);
+    setLoginStatus('idle');
   };
 
   const value: AuthContextType = {
     user,
     session,
     isAuthenticated: user !== null,
+    isInitializing,
     isLoading,
+    loginStatus,
     login,
     logout,
     error

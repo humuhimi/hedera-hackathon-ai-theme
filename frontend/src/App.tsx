@@ -3,10 +3,10 @@ import { AuthButton } from './components/AuthButton'
 import { UserMenu } from './components/UserMenu'
 
 function App() {
-  const { isAuthenticated, isLoading, user } = useAuth()
+  const { isAuthenticated, isInitializing, user } = useAuth()
 
   // Loading state
-  if (isLoading) {
+  if (isInitializing) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
