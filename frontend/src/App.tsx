@@ -1,9 +1,10 @@
 import { useAuth } from './contexts/AuthContext'
 import { AuthButton } from './components/AuthButton'
 import { UserMenu } from './components/UserMenu'
+import { PrivateKeySave } from './components/PrivateKeySave'
 
 function App() {
-  const { isAuthenticated, isInitializing, user } = useAuth()
+  const { isAuthenticated, isInitializing, user, privateKey, clearPrivateKey } = useAuth()
 
   // Loading state
   if (isInitializing) {
@@ -31,6 +32,17 @@ function App() {
           <AuthButton />
         </div>
       </div>
+    )
+  }
+
+  // Authenticated - Show private key save screen if needed
+  if (isAuthenticated && privateKey && user?.did) {
+    return (
+      <PrivateKeySave
+        privateKey={privateKey}
+        did={user.did}
+        onComplete={clearPrivateKey}
+      />
     )
   }
 

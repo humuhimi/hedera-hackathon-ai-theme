@@ -1,3 +1,5 @@
+import type { AuthResponse, User } from '../types/auth';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 export const api = {
@@ -27,10 +29,7 @@ export const api = {
   /**
    * Verify signature and authenticate
    */
-  async authenticate(accountId: string, signature: string, userName?: string, region?: string): Promise<{
-    token: string;
-    user: any;
-  }> {
+  async authenticate(accountId: string, signature: string, userName?: string, region?: string): Promise<AuthResponse> {
     const response = await fetch(`${API_URL}/auth/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,7 +46,7 @@ export const api = {
   /**
    * Get current user info
    */
-  async getMe(token: string): Promise<any> {
+  async getUserInfo(token: string): Promise<User> {
     const response = await fetch(`${API_URL}/auth/me`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });

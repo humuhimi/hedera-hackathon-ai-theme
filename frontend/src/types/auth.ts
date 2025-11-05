@@ -1,12 +1,13 @@
 export interface User {
   id: string;
   hederaAccountId: string;
-  did: string;  // Hedera DID
+  did?: string;  // Hedera DID (optional until registered)
+  didRegistered: boolean;
   userName?: string;
   region?: string;
   avatarUrl?: string;
-  createdAt: string;
-  lastLoginAt: string;
+  createdAt?: string;
+  lastLoginAt?: string;
 }
 
 export interface AuthSession {
@@ -27,4 +28,10 @@ export interface AuthResult {
 export interface WalletConnectionResult {
   accountId: string;
   topic?: string;  // WalletConnect session topic
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+  privateKey?: string;  // Only returned on first login
 }

@@ -101,6 +101,12 @@ function parseKeyBytes(keyBytes: Buffer): AccountKeyInfo {
 /**
  * Fetch account public key from Hedera Mirror Node (free, no operator required)
  */
+interface MirrorNodeResponse {
+  key?: {
+    key: string;
+  };
+}
+
 async function fetchAccountKeyFromMirror(accountId: string): Promise<string> {
   const mirrorUrl = HEDERA_NETWORK === 'mainnet'
     ? 'https://mainnet-public.mirrornode.hedera.com'
@@ -113,7 +119,7 @@ async function fetchAccountKeyFromMirror(accountId: string): Promise<string> {
     throw new Error(`Mirror Node request failed: ${response.statusText}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as MirrorNodeResponse;
 
   if (!data.key || !data.key.key) {
     throw new Error('Account key not found in Mirror Node response');

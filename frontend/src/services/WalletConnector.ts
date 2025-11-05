@@ -6,6 +6,8 @@ import {
 } from '@hashgraph/hedera-wallet-connect';
 import { LedgerId } from '@hashgraph/sdk';
 import { WalletConnectionResult } from '../types/auth';
+import type { SessionTypes } from '@walletconnect/types';
+
 
 /**
  * WalletConnector service using Hedera WalletConnect
@@ -16,7 +18,7 @@ import { WalletConnectionResult } from '../types/auth';
  */
 export class WalletConnector {
   private dAppConnector: DAppConnector | null = null;
-  private session: any = null;  // Session type from WalletConnect
+  private session: SessionTypes.Struct | null = null;
   private projectId: string;
   private network: 'mainnet' | 'testnet';
 
@@ -171,12 +173,13 @@ export class WalletConnector {
         message: message
       });
 
-      if (!result.signatureMap) {
+      const signatureMap = (result as { signatureMap?: string }).signatureMap;
+      if (!signatureMap) {
         throw new Error('No signature returned');
       }
 
       // Convert base64 signature to hex
-      const binaryString = atob(result.signatureMap);
+      const binaryString = atob(signatureMap);
       const hexSignature = Array.from(binaryString)
         .map(char => char.charCodeAt(0).toString(16).padStart(2, '0'))
         .join('');

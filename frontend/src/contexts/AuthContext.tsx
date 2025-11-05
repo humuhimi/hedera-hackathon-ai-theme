@@ -13,6 +13,8 @@ interface AuthContextType {
   isInitializing: boolean;
   isLoading: boolean;
   loginStatus: LoginStatus;
+  privateKey: string | null;
+  clearPrivateKey: () => void;
   login: () => Promise<void>;
   logout: () => void;
   error: string | null;
@@ -27,6 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [loginStatus, setLoginStatus] = useState<LoginStatus>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [privateKey, setPrivateKey] = useState<string | null>(null);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -36,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (existingSession) {
         try {
           // Verify session by fetching user data
-          const userData = await api.getMe(existingSession.token);
+          const userData = await api.getUserInfo(existingSession.token);
           setSession(existingSession);
           setUser(userData);
         } catch (error) {
@@ -88,6 +91,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       sessionManager.save(newSession);
       setSession(newSession);
       setUser(result.user);
+
+      // 6. Save private key if returned (first-time user)
+      if (result.privateKey) {
+        setPrivateKey(result.privateKey);
+      }
+
       setLoginStatus('success');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
@@ -105,8 +114,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     walletConnector.disconnect();
     setUser(null);
     setSession(null);
+    setPrivateKey(null);
     setError(null);
     setLoginStatus('idle');
+  };
+
+  const clearPrivateKey = () => {
+    setPrivateKey(null);
   };
 
   const value: AuthContextType = {
@@ -116,6 +130,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isInitializing,
     isLoading,
     loginStatus,
+    privateKey,
+    clearPrivateKey,
     login,
     logout,
     error

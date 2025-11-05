@@ -9,7 +9,8 @@ export interface AuthRequest extends Request {
   user?: {
     userId: string;
     hederaAccountId: string;
-    did: string;
+    did?: string;
+    didRegistered?: boolean;
   };
 }
 

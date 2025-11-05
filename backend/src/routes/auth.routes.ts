@@ -13,6 +13,7 @@ import {
   updateUserProfile
 } from '../services/auth.service.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.middleware.js';
+import { generateDID } from '../services/did.service.js';
 
 const router = Router();
 
@@ -120,11 +121,8 @@ router.post('/did/register', authenticateToken, async (req: AuthRequest, res: Re
       return;
     }
 
-    // Import DID service
-    const { generateAndRegisterDID } = await import('../services/did.service.js');
-
-    // Generate and register DID
-    const result = await generateAndRegisterDID();
+    // Generate DID
+    const result = await generateDID();
 
     // Update user with DID
     const user = await registerUserDID(req.user.userId, result.did, result.publicKey);

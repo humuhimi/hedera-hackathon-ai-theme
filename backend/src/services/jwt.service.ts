@@ -2,22 +2,29 @@
  * JWT Service
  * Handles JWT token generation and verification with security best practices
  */
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
-const JWT_ISSUER = process.env.FRONTEND_URL || 'http://localhost:3000';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN!;
+const JWT_ISSUER = process.env.FRONTEND_URL!;
 const JWT_AUDIENCE = 'jimomarket-api';
 
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
   throw new Error('JWT_SECRET must be at least 32 characters');
+}
+if (!JWT_EXPIRES_IN) {
+  throw new Error('JWT_EXPIRES_IN must be set');
+}
+if (!JWT_ISSUER) {
+  throw new Error('FRONTEND_URL must be set');
 }
 
 export interface JWTPayload {
   userId: string;
   hederaAccountId: string;
   did?: string;
+  didRegistered?: boolean;
   // Standard JWT claims
   iss?: string;
   aud?: string;
@@ -33,15 +40,16 @@ export interface JWTPayload {
 export function generateToken(payload: Omit<JWTPayload, 'iss' | 'aud' | 'sub' | 'jti' | 'iat' | 'exp'>): string {
   const jti = crypto.randomBytes(16).toString('hex');
 
+  // @ts-ignore - jwt.sign type inference issue
   return jwt.sign(
     {
       ...payload,
-      sub: payload.userId, // subject = user ID
-      jti, // unique token ID for revocation tracking
+      sub: payload.userId,
+      jti,
     },
     JWT_SECRET,
     {
-      algorithm: 'HS256', // Explicitly set algorithm
+      algorithm: 'HS256',
       expiresIn: JWT_EXPIRES_IN,
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,

@@ -7,6 +7,7 @@ import { generateToken, JWTPayload } from './jwt.service.js';
 import { createAuthMessage } from '../utils/signature.js';
 import crypto from 'crypto';
 import { verifyMessageSignature } from '../utils/verifySignature.js';
+import { generateDID } from './did.service.js';
 
 const prisma = new PrismaClient();
 
@@ -33,6 +34,7 @@ export interface AuthResponse {
     region?: string;
     avatarUrl?: string;
   };
+  privateKey?: string; // Only returned on first login
 }
 
 /**
@@ -122,6 +124,7 @@ export async function verifyAuthSignature(
 
 /**
  * Authenticate user with Hedera account
+ * Automatically creates DID for first-time users
  */
 export async function authenticateWithHedera(
   accountId: string,
@@ -133,16 +136,25 @@ export async function authenticateWithHedera(
     where: { hederaAccountId: accountId },
   });
 
+  let privateKey: string | undefined;
+
   if (!user) {
-    // First time user - create basic account
+    // First time user - create DID and account
+    const didResult = await generateDID();
+
     user = await prisma.user.create({
       data: {
         hederaAccountId: accountId,
-        didRegistered: false,
+        did: didResult.did,
+        didPublicKey: didResult.publicKey,
+        didRegistered: true,
         userName,
         region,
       },
     });
+
+    // Return private key only on first login
+    privateKey = didResult.privateKey;
   } else {
     // Existing user - update last login
     user = await prisma.user.update({
@@ -156,6 +168,7 @@ export async function authenticateWithHedera(
     userId: user.id,
     hederaAccountId: user.hederaAccountId,
     did: user.did || undefined,
+    didRegistered: user.didRegistered,
   };
 
   const token = generateToken(payload);
@@ -171,6 +184,7 @@ export async function authenticateWithHedera(
       region: user.region || undefined,
       avatarUrl: user.avatarUrl || undefined,
     },
+    privateKey,
   };
 }
 
