@@ -2,6 +2,11 @@ import { useAuth } from './contexts/AuthContext'
 import { AuthButton } from './components/AuthButton'
 import { UserMenu } from './components/UserMenu'
 import { PrivateKeySave } from './components/PrivateKeySave'
+import { EmptyStateHero } from './components/home/EmptyStateHero'
+import { AgentTypeCard } from './components/home/AgentTypeCard'
+import { HowToUseSection } from './components/home/HowToUseSection'
+import { AgentList } from './components/home/AgentList'
+import { Agent, AgentType } from './types/agent'
 
 function App() {
   const { isAuthenticated, isInitializing, user, privateKey, clearPrivateKey } = useAuth()
@@ -12,7 +17,7 @@ function App() {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">読み込み中...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     )
@@ -27,7 +32,7 @@ function App() {
             Jimo market
           </h1>
           <p className="text-xl text-gray-700 mb-8">
-            AIエージェントで地域取引を自動化
+            Automate local trading with AI agents
           </p>
           <AuthButton />
         </div>
@@ -47,8 +52,17 @@ function App() {
   }
 
   // Authenticated - Home Page
+  // Mock data: Replace with real data from API
+  const agents: Agent[] = [] // [] for empty state, or array of agents
+  const hasAgents = agents.length > 0
+
+  const handleCreateAgent = (type: AgentType) => {
+    console.log('Create agent:', type)
+    // TODO: Navigate to agent creation page
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -59,32 +73,21 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-white p-8 rounded-lg shadow-lg">
-          <h2 className="text-3xl font-bold text-gray-800 mb-6">
-            🎉 ようこそ、{user?.userName || 'ユーザー'}さん！
-          </h2>
+        {!hasAgents ? (
+          <>
+            <EmptyStateHero />
 
-          <div className="space-y-4 mb-6">
-            <div className="bg-blue-50 border-l-4 border-blue-600 p-4">
-              <p className="font-semibold text-blue-800">Hedera Account</p>
-              <p className="text-blue-700 font-mono text-sm">{user?.hederaAccountId}</p>
+            {/* Two-Column CTA Cards */}
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              <AgentTypeCard type="give" onCreateAgent={() => handleCreateAgent('give')} />
+              <AgentTypeCard type="want" onCreateAgent={() => handleCreateAgent('want')} />
             </div>
 
-            <div className="bg-purple-50 border-l-4 border-purple-600 p-4">
-              <p className="font-semibold text-purple-800">Decentralized Identifier (DID)</p>
-              <p className="text-purple-700 font-mono text-sm break-all">{user?.did}</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <p className="text-gray-600 mb-4">あなたのAIエージェント</p>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                + 新しいAIを作る
-              </button>
-            </div>
-          </div>
-        </div>
+            <HowToUseSection />
+          </>
+        ) : (
+          <AgentList agents={agents} onCreateAgent={handleCreateAgent} />
+        )}
       </main>
     </div>
   )
