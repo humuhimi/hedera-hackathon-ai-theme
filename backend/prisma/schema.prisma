@@ -1,0 +1,28 @@
+// Prisma Schema for Jimo Market
+// Development: SQLite
+// Production: PostgreSQL (Railway)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model with Hedera DID integration
+// DID private key is stored client-side, not on server
+model User {
+  id                String   @id @default(uuid())
+  hederaAccountId   String   @unique // 0.0.xxxxx
+  did               String?  @unique // did:hedera:testnet:xxx (created after DID registration)
+  didPublicKey      String?  // DID public key (received from client)
+  didRegistered     Boolean  @default(false) // Whether DID Document is on HCS
+  userName          String?
+  region            String?
+  avatarUrl         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastLoginAt       DateTime @default(now())
+}
