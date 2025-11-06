@@ -53,8 +53,8 @@ export function ChatPanel({
             <p className="text-lg mb-2">👋 Start chatting with your agent!</p>
             <p className="text-sm">
               {isGiveType
-                ? 'Tell the agent about items you want to give away or sell'
-                : 'Tell the agent what items you are looking for'}
+                ? 'Tell the agent about items you want to sell'
+                : 'Tell the agent what items you want to buy'}
             </p>
           </div>
         ) : (

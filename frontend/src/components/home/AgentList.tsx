@@ -31,7 +31,7 @@ export const AgentList = ({ agents, onCreateAgent }: AgentListProps) => {
               : 'text-gray-500 hover:text-orange-600'
           }`}
         >
-          🎁 Give Away ({giveAgents.length})
+          💰 Seller ({giveAgents.length})
         </button>
         <button
           onClick={() => setActiveTab('want')}
@@ -41,7 +41,7 @@ export const AgentList = ({ agents, onCreateAgent }: AgentListProps) => {
               : 'text-gray-500 hover:text-blue-600'
           }`}
         >
-          🔍 Looking For ({wantAgents.length})
+          🛒 Buyer ({wantAgents.length})
         </button>
       </div>
 
@@ -95,7 +95,7 @@ export const AgentList = ({ agents, onCreateAgent }: AgentListProps) => {
             ➕
           </div>
           <p className="text-gray-600 font-medium group-hover:text-orange-600">
-            Add new {activeTab === 'give' ? 'Give-Away' : 'Looking-For'} AI
+            Add new {activeTab === 'give' ? 'Seller' : 'Buyer'} AI
           </p>
         </button>
       </div>

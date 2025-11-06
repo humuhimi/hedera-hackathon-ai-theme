@@ -22,7 +22,7 @@ export function AgentInfoPanel({
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 sticky top-6">
       <div className="text-center mb-6">
-        <div className="text-6xl mb-4">{isGiveType ? '🎁' : '🔍'}</div>
+        <div className="text-6xl mb-4">{isGiveType ? '💰' : '🛒'}</div>
         <h1 className="text-2xl font-bold text-gray-800 mb-2">{agent.name}</h1>
         <p className="text-gray-600 text-sm">{agent.description}</p>
       </div>
@@ -73,7 +73,7 @@ export function AgentInfoPanel({
               isGiveType ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
             }`}
           >
-            {isGiveType ? 'Give Away' : 'Looking For'}
+            {isGiveType ? 'Seller' : 'Buyer'}
           </span>
         </div>
 

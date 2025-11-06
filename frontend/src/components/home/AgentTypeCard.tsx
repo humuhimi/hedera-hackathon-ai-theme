@@ -10,10 +10,10 @@ export const AgentTypeCard = ({ type, onCreateAgent }: AgentTypeCardProps) => {
 
   const config = {
     give: {
-      icon: '🎁',
-      title: 'Give Away',
-      subtitle: 'Free / Sell',
-      description: 'Register your unwanted items, then',
+      icon: '💰',
+      title: 'Seller',
+      subtitle: 'Sell Items',
+      description: 'Register items you want to sell, then',
       highlight: 'let AI handle everything.',
       details: 'AI automatically responds to inquiries and finds buyers.',
       features: [
@@ -21,7 +21,7 @@ export const AgentTypeCard = ({ type, onCreateAgent }: AgentTypeCardProps) => {
         { title: 'Price negotiation', desc: 'AI negotiates within your terms' },
         { title: 'Schedule coordination', desc: 'Automatic pickup time arrangement' }
       ],
-      buttonText: 'Create Give-Away AI',
+      buttonText: 'Create Seller AI',
       colorFrom: 'from-orange-50',
       colorTo: 'to-orange-100',
       textColor: 'text-orange-600',
@@ -31,10 +31,10 @@ export const AgentTypeCard = ({ type, onCreateAgent }: AgentTypeCardProps) => {
       borderHover: 'hover:border-orange-300'
     },
     want: {
-      icon: '🔍',
-      title: 'Looking For',
-      subtitle: 'Want / Buy',
-      description: 'Register what you want, then',
+      icon: '🛒',
+      title: 'Buyer',
+      subtitle: 'Buy Items',
+      description: 'Register items you want to buy, then',
       highlight: 'AI searches 24/7 for you.',
       details: 'Get instant notifications when matching items are found.',
       features: [
@@ -42,7 +42,7 @@ export const AgentTypeCard = ({ type, onCreateAgent }: AgentTypeCardProps) => {
         { title: 'Instant notifications', desc: 'Alerts you on perfect matches' },
         { title: 'Negotiation support', desc: 'Assists with price and terms' }
       ],
-      buttonText: 'Create Looking-For AI',
+      buttonText: 'Create Buyer AI',
       colorFrom: 'from-blue-50',
       colorTo: 'to-blue-100',
       textColor: 'text-blue-600',

@@ -44,13 +44,13 @@ export function useAgents() {
       }
       const token = session.token
 
-      const name = type === 'give' ? 'Give-Away AI' : 'Looking-For AI'
+      const name = type === 'give' ? 'Seller AI' : 'Buyer AI'
       await api.createAgent(token, {
         type,
         name,
         description: type === 'give' 
-          ? 'AI that helps you sell or give away items'
-          : 'AI that helps you find items you want'
+          ? 'AI that helps you sell items'
+          : 'AI that helps you find and buy items'
       })
 
       await loadAgents()
