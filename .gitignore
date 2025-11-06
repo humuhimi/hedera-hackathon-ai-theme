@@ -53,3 +53,9 @@ coverage/
 .cache/
 tmp/
 temp/
+
+# ElizaOS specific
+**/.eliza/
+.eliza/
+bun.lock
+*.lock
