@@ -104,7 +104,10 @@ export const SignatureModal = ({ isOpen, onClose }: SignatureModalProps) => {
 
         {/* Cancel button */}
         <button
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           className="w-full py-3 px-4 text-gray-600 hover:text-gray-800 text-base font-semibold transition-all hover:bg-gray-50 rounded-xl"
         >
           キャンセル
