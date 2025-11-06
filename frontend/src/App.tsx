@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext'
 import { LandingPage } from './pages/LandingPage'
 import { HomePage } from './pages/HomePage'
 import { PrivateKeySavePage } from './pages/PrivateKeySavePage'
+import { AgentDetailPage } from './pages/AgentDetailPage'
 import { Layout } from './components/layout/Layout'
 import { PrivateRoute } from './components/layout/PrivateRoute'
 
@@ -59,6 +60,18 @@ function App() {
           element={
             <PrivateRoute>
               <PrivateKeySavePage />
+            </PrivateRoute>
+          } 
+        />
+
+        {/* Private route - Agent detail page */}
+        <Route 
+          path="/agent/:id" 
+          element={
+            <PrivateRoute>
+              <Layout>
+                <AgentDetailPage />
+              </Layout>
             </PrivateRoute>
           } 
         />

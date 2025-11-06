@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Agent, AgentType } from '../../types/agent'
 
 interface AgentListProps {
@@ -7,6 +8,7 @@ interface AgentListProps {
 }
 
 export const AgentList = ({ agents, onCreateAgent }: AgentListProps) => {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<AgentType>('give')
 
   const giveAgents = agents.filter(a => a.type === 'give')
@@ -74,7 +76,10 @@ export const AgentList = ({ agents, onCreateAgent }: AgentListProps) => {
                   </div>
                 </div>
               </div>
-              <button className="px-4 py-2 border-2 border-orange-500 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors font-medium">
+              <button 
+                onClick={() => navigate(`/agent/${agent.id}`)}
+                className="px-4 py-2 border-2 border-orange-500 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors font-medium"
+              >
                 View Details
               </button>
             </div>

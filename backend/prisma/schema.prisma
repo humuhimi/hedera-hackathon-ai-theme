@@ -38,6 +38,7 @@ model Agent {
   name        String
   description String?
   status      String   @default("active") // "active" | "paused"
+  channelId   String?  // ElizaOS channel ID for messaging
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   

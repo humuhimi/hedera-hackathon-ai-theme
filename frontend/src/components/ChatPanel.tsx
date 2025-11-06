@@ -1,0 +1,124 @@
+import { useState, FormEvent } from 'react'
+import { Agent } from '../services/api'
+import { ChatMessage } from '../hooks/useChatHistory'
+
+interface ChatPanelProps {
+  agent: Agent
+  chatHistory: ChatMessage[]
+  chatEndRef: React.RefObject<HTMLDivElement>
+  isConnected: boolean
+  isSending: boolean
+  onSendMessage: (message: string) => void
+}
+
+/**
+ * Chat interface component for agent communication
+ * Displays chat history and provides message input
+ * @param props - Agent data, chat state, and message handler
+ */
+export function ChatPanel({
+  agent,
+  chatHistory,
+  chatEndRef,
+  isConnected,
+  isSending,
+  onSendMessage,
+}: ChatPanelProps) {
+  const [message, setMessage] = useState('')
+  const isGiveType = agent.type === 'give'
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!message.trim()) return
+
+    onSendMessage(message)
+    setMessage('')
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg h-[600px] flex flex-col">
+      {/* Chat Header */}
+      <div className="p-6 border-b border-gray-200">
+        <h2 className="text-xl font-bold text-gray-800">Chat with Agent</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Give instructions or ask questions to your AI agent
+          {isConnected && <span className="ml-2 text-green-600">● Live</span>}
+        </p>
+      </div>
+
+      {/* Chat History */}
+      <div className="flex-1 p-6 overflow-y-auto space-y-4">
+        {chatHistory.length === 0 ? (
+          <div className="text-center text-gray-500 mt-8">
+            <p className="text-lg mb-2">👋 Start chatting with your agent!</p>
+            <p className="text-sm">
+              {isGiveType
+                ? 'Tell the agent about items you want to give away or sell'
+                : 'Tell the agent what items you are looking for'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {chatHistory.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-lg p-4 ${
+                    msg.role === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : msg.text === 'Thinking...'
+                      ? 'bg-gray-200 text-gray-600 animate-pulse'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                  <p
+                    className={`text-xs mt-1 ${
+                      msg.role === 'user' ? 'text-blue-200' : 'text-gray-500'
+                    }`}
+                  >
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </>
+        )}
+      </div>
+
+      {/* Chat Input */}
+      <form onSubmit={handleSubmit} className="p-6 border-t border-gray-200">
+        <div className="flex gap-3">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Type your message..."
+            disabled={isSending || agent.status !== 'active' || !isConnected}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          />
+          <button
+            type="submit"
+            disabled={isSending || !message.trim() || agent.status !== 'active' || !isConnected}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+          >
+            {isSending ? 'Sending...' : 'Send'}
+          </button>
+        </div>
+        {agent.status !== 'active' && (
+          <p className="text-sm text-amber-600 mt-2">
+            ⚠️ Agent is paused. Activate it to send messages.
+          </p>
+        )}
+        {!isConnected && agent.status === 'active' && (
+          <p className="text-sm text-red-600 mt-2">
+            ⚠️ Not connected to server. Reconnecting...
+          </p>
+        )}
+      </form>
+    </div>
+  )
+}
