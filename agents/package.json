@@ -51,8 +51,8 @@
     "vite": "^6.0.1"
   },
   "scripts": {
-    "start": "elizaos start",
-    "dev": "elizaos dev",
+    "start": "SERVER_PORT=3333 elizaos start",
+    "dev": "SERVER_PORT=3333 elizaos dev",
     "build": "bun run build.ts",
     "lint": "prettier --write ./src",
     "type-check": "tsc --noEmit",

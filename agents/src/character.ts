@@ -12,10 +12,16 @@ import { type Character } from '@elizaos/core';
 export const character: Character = {
   name: 'Eliza',
   plugins: [
-    // Core plugins first
+    // Bootstrap plugin - MUST BE FIRST to provide core actions like REPLY
+    ...(!process.env.IGNORE_BOOTSTRAP ? ['@elizaos/plugin-bootstrap'] : []),
+
+    // Core plugins
     '@elizaos/plugin-sql',
 
-    // Ollama (local, free) - PRIORITIZED
+    // OpenAI (PRIORITIZED for development - fast & reliable)
+    ...(process.env.OPENAI_API_KEY?.trim() ? ['@elizaos/plugin-openai'] : []),
+
+    // Ollama (local, free) - fallback option
     ...(process.env.OLLAMA_API_ENDPOINT?.trim() ? ['@elizaos/plugin-ollama'] : []),
 
     // Text-only plugins (no embedding support)
@@ -23,8 +29,6 @@ export const character: Character = {
     ...(process.env.OPENROUTER_API_KEY?.trim() ? ['@elizaos/plugin-openrouter'] : []),
 
     // Embedding-capable plugins (optional, based on available credentials)
-    // Commented out to use Ollama instead
-    // ...(process.env.OPENAI_API_KEY?.trim() ? ['@elizaos/plugin-openai'] : []),
     ...(process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ? ['@elizaos/plugin-google-genai'] : []),
 
     // Platform plugins
@@ -36,9 +40,6 @@ export const character: Character = {
       ? ['@elizaos/plugin-twitter']
       : []),
     ...(process.env.TELEGRAM_BOT_TOKEN?.trim() ? ['@elizaos/plugin-telegram'] : []),
-
-    // Bootstrap plugin
-    ...(!process.env.IGNORE_BOOTSTRAP ? ['@elizaos/plugin-bootstrap'] : []),
   ],
   settings: {
     secrets: {},
