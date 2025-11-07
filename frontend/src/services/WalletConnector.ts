@@ -24,7 +24,11 @@ export class WalletConnector {
 
   constructor() {
     this.projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
-    this.network = (import.meta.env.VITE_HEDERA_NETWORK || 'testnet') as 'mainnet' | 'testnet';
+    const configuredNetwork = import.meta.env.VITE_HEDERA_NETWORK as string | undefined;
+    if (configuredNetwork !== 'mainnet' && configuredNetwork !== 'testnet') {
+      throw new Error('VITE_HEDERA_NETWORK must be set to either "mainnet" or "testnet".');
+    }
+    this.network = configuredNetwork as 'mainnet' | 'testnet';
 
     if (!this.projectId) {
       console.error('❌ VITE_WALLETCONNECT_PROJECT_ID is not set');
@@ -50,6 +54,7 @@ export class WalletConnector {
     };
 
     const ledgerId = this.network === 'mainnet' ? LedgerId.MAINNET : LedgerId.TESTNET;
+    const chainId = this.network === 'mainnet' ? HederaChainId.Mainnet : HederaChainId.Testnet;
 
     this.dAppConnector = new DAppConnector(
       metadata,
@@ -57,7 +62,7 @@ export class WalletConnector {
       this.projectId,
       Object.values(HederaJsonRpcMethod),
       [HederaSessionEvent.ChainChanged, HederaSessionEvent.AccountsChanged],
-      [HederaChainId.Testnet]
+      [chainId]
     );
 
     await this.dAppConnector.init({ logger: 'error' });

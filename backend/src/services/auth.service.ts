@@ -49,7 +49,10 @@ export function generateChallenge(accountId: string): {
 } {
   const challenge = crypto.randomBytes(32).toString('hex');
   const domain = process.env.FRONTEND_URL || 'http://localhost:3000';
-  const network = process.env.HEDERA_NETWORK || 'testnet';
+  const network = process.env.HEDERA_NETWORK;
+  if (!network) {
+    throw new Error('HEDERA_NETWORK not set');
+  }
   const issuedAt = new Date().toISOString();
 
   // Create the message that will be signed

@@ -9,9 +9,17 @@ import {
 } from '@hashgraph/sdk';
 
 function getConfig() {
-  const HEDERA_NETWORK = process.env.HEDERA_NETWORK || 'testnet';
+  const HEDERA_NETWORK = process.env.HEDERA_NETWORK;
   const OPERATOR_ID = process.env.HEDERA_MANAGER_ACCOUNT_ID;
   const OPERATOR_KEY = process.env.HEDERA_MANAGER_PRIVATE_KEY;
+
+  if (!HEDERA_NETWORK) {
+    throw new Error('HEDERA_NETWORK not set');
+  }
+
+  if (HEDERA_NETWORK !== 'mainnet' && HEDERA_NETWORK !== 'testnet') {
+    throw new Error(`Unsupported HEDERA_NETWORK "${HEDERA_NETWORK}" for DID operations`);
+  }
 
   if (!OPERATOR_ID || !OPERATOR_KEY) {
     throw new Error('HEDERA_MANAGER_ACCOUNT_ID/PRIVATE_KEY not set');

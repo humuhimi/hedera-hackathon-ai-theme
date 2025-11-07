@@ -5,7 +5,21 @@
  */
 import { PublicKey } from '@hashgraph/sdk';
 
-const HEDERA_NETWORK = process.env.HEDERA_NETWORK || 'testnet';
+const HEDERA_NETWORK = process.env.HEDERA_NETWORK;
+if (!HEDERA_NETWORK) {
+  throw new Error('HEDERA_NETWORK not set');
+}
+
+const MIRROR_NODE_BASE: Record<string, string> = {
+  mainnet: 'https://mainnet-public.mirrornode.hedera.com',
+  testnet: 'https://testnet.mirrornode.hedera.com',
+  previewnet: 'https://previewnet.mirrornode.hedera.com',
+};
+
+const mirrorNodeUrl = MIRROR_NODE_BASE[HEDERA_NETWORK];
+if (!mirrorNodeUrl) {
+  throw new Error(`Unsupported HEDERA_NETWORK "${HEDERA_NETWORK}" for mirror node queries`);
+}
 
 /**
  * Key type for Hedera accounts
@@ -108,11 +122,7 @@ interface MirrorNodeResponse {
 }
 
 async function fetchAccountKeyFromMirror(accountId: string): Promise<string> {
-  const mirrorUrl = HEDERA_NETWORK === 'mainnet'
-    ? 'https://mainnet-public.mirrornode.hedera.com'
-    : 'https://testnet.mirrornode.hedera.com';
-
-  const url = `${mirrorUrl}/api/v1/accounts/${accountId}`;
+  const url = `${mirrorNodeUrl}/api/v1/accounts/${accountId}`;
   const response = await fetch(url);
 
   if (!response.ok) {
