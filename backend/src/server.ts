@@ -1,14 +1,14 @@
+// Load environment variables FIRST before any other imports
+import 'dotenv/config';
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import authRoutes from './routes/auth.routes.js';
 import agentRoutes from './routes/agent.routes.js';
 import { verifyToken } from './services/jwt.service.js';
 import { agentService } from './services/agent.service.js';
-
-dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
