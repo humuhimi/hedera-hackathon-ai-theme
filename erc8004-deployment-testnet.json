@@ -1,0 +1,41 @@
+{
+  "network": "testnet",
+  "deployer": "0.0.7110667",
+  "deployedAt": "2025-11-07T16:35:43.417Z",
+  "contracts": {
+    "identityRegistry": {
+      "name": "identityRegistry",
+      "contractId": "0.0.7212881",
+      "evmAddress": "00000000000000000000000000000000006e0f51",
+      "fee": 330612310,
+      "gasUsed": 1600000
+    },
+    "reputationRegistry": {
+      "name": "reputationRegistry",
+      "contractId": "0.0.7212889",
+      "evmAddress": "00000000000000000000000000000000006e0f59",
+      "fee": 350186228,
+      "gasUsed": 1937532,
+      "constructorParams": {
+        "identityRegistry": "00000000000000000000000000000000006e0f51"
+      }
+    },
+    "validationRegistry": {
+      "name": "validationRegistry",
+      "contractId": "0.0.7212892",
+      "evmAddress": "00000000000000000000000000000000006e0f5c",
+      "fee": 332972096,
+      "gasUsed": 1600000,
+      "constructorParams": {
+        "identityRegistry": "00000000000000000000000000000000006e0f51"
+      }
+    }
+  },
+  "summary": {
+    "totalFee": {
+      "tinybar": 1013770634,
+      "hbar": "10.13770634"
+    },
+    "totalGasUsed": 5137532
+  }
+}
