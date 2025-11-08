@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { erc8004Service } from './erc8004.service';
 
 const prisma = new PrismaClient();
 
@@ -31,6 +32,15 @@ class AgentService {
       throw new Error('Invalid agent type. Must be "give" or "want"');
     }
 
+    // Get user's DID for blockchain registration
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
     // Create agent in database
     const agent = await prisma.agent.create({
       data: {
@@ -42,6 +52,34 @@ class AgentService {
       },
     });
 
+    // Register agent on blockchain (ERC-8004)
+    try {
+      if (user.did) {
+        console.log(`🔗 Registering agent ${agent.id} on blockchain...`);
+        const registration = await erc8004Service.registerAgent(userId, {
+          name: name,
+          type: type as 'give' | 'want',
+          description: description || ''
+        });
+
+        // Update agent with blockchain info
+        await prisma.agent.update({
+          where: { id: agent.id },
+          data: {
+            erc8004AgentId: registration.agentId,
+            blockchainTxId: registration.transactionId,
+          },
+        });
+
+        console.log(`✅ Agent ${agent.id} registered on blockchain with ID: ${registration.agentId}`);
+      } else {
+        console.warn(`⚠️ User ${userId} has no DID, skipping blockchain registration`);
+      }
+    } catch (error) {
+      console.error(`Failed to register agent ${agent.id} on blockchain:`, error);
+      // Don't fail agent creation if blockchain registration fails
+    }
+
     // Create dedicated channel in ElizaOS for this agent
     let channelId: string | null = null;
     try {
@@ -52,15 +90,15 @@ class AgentService {
       try {
         const agentsResponse = await fetch(`${this.elizaOsUrl}/api/agents`);
         if (agentsResponse.ok) {
-          const agentsData = await agentsResponse.json();
+          const agentsData = await agentsResponse.json() as { data?: { agents?: Array<{ id: string; name: string }> } };
           const agents = agentsData.data?.agents || [];
-          const elizaAgent = agents.find((a: any) => a.name === agentName);
+          const elizaAgent = agents.find((a) => a.name === agentName);
           
           if (elizaAgent) {
             elizaAgentId = elizaAgent.id;
             console.log(`✅ Found ${agentName} with ID: ${elizaAgentId}`);
           } else {
-            console.warn(`⚠️ ${agentName} not found in ElizaOS, available agents:`, agents.map((a: any) => a.name));
+            console.warn(`⚠️ ${agentName} not found in ElizaOS, available agents:`, agents.map((a) => a.name));
           }
         }
       } catch (error) {
@@ -83,7 +121,7 @@ class AgentService {
       });
 
       if (channelResponse.ok) {
-        const channelData = await channelResponse.json();
+        const channelData = await channelResponse.json() as { data: { channel: { id: string } } };
         channelId = channelData.data.channel.id;
         
         // Step 3: Add ElizaOS agent to channel as participant
@@ -117,7 +155,12 @@ class AgentService {
 
     console.log(`✅ Agent ${agent.id} created (${type})`);
 
-    return { ...agent, channelId };
+    // Fetch the latest agent data (with blockchain info if registered)
+    const updatedAgent = await prisma.agent.findUnique({
+      where: { id: agent.id },
+    });
+
+    return { ...updatedAgent, channelId };
   }
 
   /**
@@ -171,7 +214,7 @@ class AgentService {
         throw new Error(`ElizaOS responded with status ${submitResponse.status}`);
       }
 
-      const submitResult = await submitResponse.json();
+      const submitResult = await submitResponse.json() as { data?: { message?: { id: string } } };
       const userMessageId = submitResult.data?.message?.id;
 
       // Wait for agent response (poll for new messages)
@@ -211,7 +254,17 @@ class AgentService {
         );
 
         if (messagesResponse.ok) {
-          const messagesData = await messagesResponse.json();
+          const messagesData = await messagesResponse.json() as {
+            data?: {
+              messages?: Array<{
+                id: string;
+                sourceType: string;
+                content?: string;
+                rawMessage?: { text: string };
+                createdAt: string;
+              }>
+            }
+          };
           const messages = messagesData.data?.messages || [];
 
           console.log(`📋 Polling attempt ${attempt + 1}/${maxAttempts}, found ${messages.length} messages`);
@@ -226,7 +279,7 @@ class AgentService {
             // Find agent response that came after our user message
             if (foundUserMessage && msg.sourceType === 'agent_response' && msg.id !== afterMessageId) {
               console.log(`✅ Found agent response: ${msg.id}, content: ${msg.content?.substring(0, 50)}`);
-              return msg.content || msg.rawMessage?.text;
+              return msg.content || msg.rawMessage?.text || null;
             }
           }
 
@@ -237,7 +290,7 @@ class AgentService {
                 const messageAge = Date.now() - new Date(msg.createdAt).getTime();
                 if (messageAge < 5000) { // Message created within last 5 seconds
                   console.log(`✅ Found recent agent response: ${msg.id}`);
-                  return msg.content || msg.rawMessage?.text;
+                  return msg.content || msg.rawMessage?.text || null;
                 }
               }
             }

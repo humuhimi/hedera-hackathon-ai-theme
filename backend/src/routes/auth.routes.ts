@@ -12,7 +12,7 @@ import {
   getUserById,
   updateUserProfile
 } from '../services/auth.service.js';
-import { authenticateToken, AuthRequest } from '../middleware/auth.middleware.js';
+import { authenticateToken } from '../middleware/auth.middleware.js';
 import { generateDID } from '../services/did.service.js';
 
 const router = Router();
@@ -105,18 +105,13 @@ router.post('/verify', async (req: Request, res: Response): Promise<void> => {
  * - privateKey: DID root private key (store securely!)
  * - publicKey: DID root public key
  */
-router.post('/did/register', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/did/register', authenticateToken, async (req, res) => {
   try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
     // Check if user already has DID
-    if (req.user.didRegistered) {
+    if (req.user!.didRegistered) {
       res.status(400).json({
         error: 'DID already registered',
-        did: req.user.did
+        did: req.user!.did
       });
       return;
     }
@@ -125,7 +120,7 @@ router.post('/did/register', authenticateToken, async (req: AuthRequest, res: Re
     const result = await generateDID();
 
     // Update user with DID
-    const user = await registerUserDID(req.user.userId, result.did, result.publicKey);
+    const user = await registerUserDID(req.user!.userId, result.did, result.publicKey);
 
     res.json({
       success: true,
@@ -135,7 +130,6 @@ router.post('/did/register', authenticateToken, async (req: AuthRequest, res: Re
       publicKey: result.publicKey,
       network: result.network,
       didTopicId: result.didTopicId,
-      receipt: result.receipt,
       warning: 'Store the privateKey securely! It will not be returned again.'
     });
   } catch (error) {
@@ -150,14 +144,9 @@ router.post('/did/register', authenticateToken, async (req: AuthRequest, res: Re
  * GET /auth/me
  * Get current user profile (protected route)
  */
-router.get('/me', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const user = await getUserById(req.user.userId);
+    const user = await getUserById(req.user!.userId);
 
     if (!user) {
       res.status(404).json({ error: 'User not found' });
@@ -175,15 +164,10 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response): Pr
  * PATCH /auth/profile
  * Update user profile (protected route)
  */
-router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/profile', authenticateToken, async (req, res) => {
   try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
     const { userName, region, avatarUrl } = req.body;
-    const user = await updateUserProfile(req.user.userId, { userName, region, avatarUrl });
+    const user = await updateUserProfile(req.user!.userId, { userName, region, avatarUrl });
 
     res.json(user);
   } catch (error) {

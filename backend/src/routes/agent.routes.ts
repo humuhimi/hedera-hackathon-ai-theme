@@ -12,7 +12,7 @@ const router = express.Router();
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { type, name, description } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user!.userId;
 
     if (!type || !name) {
       return res.status(400).json({ error: 'type and name are required' });
@@ -42,7 +42,7 @@ router.post('/', authenticateToken, async (req, res) => {
  */
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user!.userId;
     const agents = await agentService.getUserAgents(userId);
     res.json(agents);
   } catch (error) {
@@ -57,7 +57,7 @@ router.get('/', authenticateToken, async (req, res) => {
  */
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user!.userId;
     const agentId = req.params.id;
 
     const agent = await agentService.getAgent(agentId, userId);
@@ -80,7 +80,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  */
 router.post('/:id/message', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user!.userId;
     const agentId = req.params.id;
     const { message } = req.body;
 
@@ -97,7 +97,7 @@ router.post('/:id/message', authenticateToken, async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error sending message:', error);
-    res.status(500).json({ error: error.message || 'Failed to send message' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to send message' });
   }
 });
 
@@ -108,7 +108,7 @@ router.post('/:id/message', authenticateToken, async (req, res) => {
  */
 router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user!.userId;
     const agentId = req.params.id;
     const { status } = req.body;
 
@@ -120,7 +120,7 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
     res.json(agent);
   } catch (error) {
     console.error('Error updating agent status:', error);
-    res.status(500).json({ error: error.message || 'Failed to update agent status' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to update agent status' });
   }
 });
 
@@ -130,14 +130,14 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user!.userId;
     const agentId = req.params.id;
 
     await agentService.deleteAgent(agentId, userId);
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting agent:', error);
-    res.status(500).json({ error: error.message || 'Failed to delete agent' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to delete agent' });
   }
 });
 

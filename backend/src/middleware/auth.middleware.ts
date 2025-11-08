@@ -5,8 +5,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../services/jwt.service.js';
 
+/**
+ * Type for authenticated requests (after authenticateToken middleware)
+ * Note: req.user is typed globally in express.d.ts, but this type
+ * makes it explicit that user exists after authentication
+ */
 export interface AuthRequest extends Request {
-  user?: {
+  user: {
     userId: string;
     hederaAccountId: string;
     did?: string;
@@ -18,7 +23,7 @@ export interface AuthRequest extends Request {
  * Middleware to verify JWT token and attach user to request
  */
 export function authenticateToken(
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): void {
