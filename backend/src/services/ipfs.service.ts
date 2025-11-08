@@ -4,21 +4,7 @@
  */
 
 import { PinataSDK } from 'pinata';
-
-interface AgentMetadata {
-  type: string;
-  name: string;
-  description: string;
-  agentType: 'give' | 'want';
-  endpoints: Array<{
-    name: string;
-    endpoint: string;
-  }>;
-  registrations: Array<{
-    agentId: number;
-    agentRegistry: string;
-  }>;
-}
+import type { ERC8004RegistrationFile } from '../types/erc8004.types.js';
 
 class IPFSService {
   private pinata: PinataSDK;
@@ -31,7 +17,7 @@ class IPFSService {
     this.pinata = new PinataSDK({ pinataJwt: jwt });
   }
 
-  async uploadMetadata(metadata: AgentMetadata): Promise<string> {
+  async uploadMetadata(metadata: ERC8004RegistrationFile): Promise<string> {
     try {
       const file = new File(
         [JSON.stringify(metadata, null, 2)],

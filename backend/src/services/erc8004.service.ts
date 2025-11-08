@@ -18,55 +18,27 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ipfsService } from './ipfs.service.js';
+import type {
+  ERC8004RegistrationFile,
+  AgentData,
+  AgentRegistration,
+  AgentInfo,
+} from '../types/erc8004.types.js';
 
 const prisma = new PrismaClient();
 
 /**
- * Agent data for registration
+ * CAIP-10 Constants (Chain Agnostic Improvement Proposal)
+ * https://github.com/ChainAgnostic/CAIPs/blob/master/CAIPs/caip-10.md
  */
-export interface AgentData {
-  name: string;
-  type: 'give' | 'want';
-  description: string;
-}
+const CAIP_NAMESPACE = 'eip155'; // EVM chains namespace
+const HEDERA_MAINNET_CHAIN_ID = '295'; // HIP-30
+const HEDERA_TESTNET_CHAIN_ID = '296'; // HIP-30
 
 /**
- * Agent registration result
+ * ERC-8004 Constants
  */
-export interface AgentRegistration {
-  agentId: number;
-  transactionId: string;
-}
-
-/**
- * Agent information from blockchain
- */
-export interface AgentInfo {
-  agentId: number;
-  ownerAddress: string;
-  ownerDid: string | null;
-  tokenURI: string;
-}
-
-/**
- * ERC-8004 Registration File (Token URI content)
- */
-interface RegistrationFile {
-  type: string;
-  name: string;
-  description: string;
-  agentType: 'give' | 'want';
-  image?: string;
-  endpoints: Array<{
-    name: string;
-    endpoint: string;
-    version?: string;
-  }>;
-  registrations: Array<{
-    agentId: number;
-    agentRegistry: string;
-  }>;
-}
+const ERC8004_REGISTRATION_TYPE = 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1';
 
 class ERC8004Service {
   private client: Client | null = null;
@@ -131,28 +103,27 @@ class ERC8004Service {
     agentId: number
   ): Promise<string> {
     // Determine chain ID based on network (HIP-30)
-    // eip155:295 = Hedera Mainnet
-    // eip155:296 = Hedera Testnet
     const network = process.env.HEDERA_NETWORK;
-    const chainId = network === 'testnet' ? '296' : '295';
+    if (!network) {
+      throw new Error('HEDERA_NETWORK must be set in .env');
+    }
+    const chainId = network === 'testnet' ? HEDERA_TESTNET_CHAIN_ID : HEDERA_MAINNET_CHAIN_ID;
 
-    const registrationFile: RegistrationFile = {
-      type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
+    // Convert Hedera ContractId to EVM address (0x...) for CAIP-10 compliance
+    const registryEvmAddress = ContractId.fromString(this.identityRegistryId).toSolidityAddress();
+
+    const registrationFile: ERC8004RegistrationFile = {
+      type: ERC8004_REGISTRATION_TYPE,
       name: agentData.name,
-      description: agentData.description,
-      agentType: agentData.type,
-      endpoints: [
-        {
-          name: 'agentType',
-          endpoint: agentData.type,
-        },
-      ],
+      description: `${agentData.description}\n\nAgent Type: ${agentData.type}`,
+      endpoints: [],  // Empty for now, will be used when A2A is implemented
       registrations: [
         {
           agentId: agentId,
-          agentRegistry: `eip155:${chainId}:${this.identityRegistryId}`,
+          agentRegistry: `${CAIP_NAMESPACE}:${chainId}:${registryEvmAddress}`,
         },
       ],
+      supportedTrust: ['reputation'],
     };
 
     return await ipfsService.uploadMetadata(registrationFile);
@@ -212,7 +183,7 @@ class ERC8004Service {
 
     const agentId = functionResult.getUint256(0).toNumber();
     const txId = registerSubmit.transactionId.toString();
-    const network = process.env.HEDERA_NETWORK || 'testnet';
+    const network = process.env.HEDERA_NETWORK;
 
     console.log(`✅ Agent registered! agentId: ${agentId}`);
     console.log(`   Transaction ID: ${txId}`);
@@ -241,24 +212,44 @@ class ERC8004Service {
     console.log('✅ Token URI set successfully');
     console.log(`   Transaction ID: ${setUriTxId}`);
 
-    // Step 4: Set onchain metadata (ownerDid only)
-    console.log('\n4️⃣  Setting agent metadata (ownerDid)...');
-    const metadataParams = new ContractFunctionParameters()
+    // Step 4: Set onchain metadata (ownerDid + agentType for Discovery)
+    console.log('\n4️⃣  Setting agent metadata (ownerDid, agentType)...');
+
+    // Set ownerDid
+    const ownerDidParams = new ContractFunctionParameters()
       .addUint256(agentId)
       .addString('ownerDid')
       .addBytes(Buffer.from(user.did, 'utf-8'));
 
-    const metadataTx = new ContractExecuteTransaction()
+    const ownerDidTx = new ContractExecuteTransaction()
       .setContractId(ContractId.fromString(this.identityRegistryId))
       .setGas(300000)
-      .setFunction('setMetadata', metadataParams);
+      .setFunction('setMetadata', ownerDidParams);
 
-    const metadataSubmit = await metadataTx.execute(client);
-    await metadataSubmit.getReceipt(client);
-    const metadataTxId = metadataSubmit.transactionId.toString();
+    const ownerDidSubmit = await ownerDidTx.execute(client);
+    await ownerDidSubmit.getReceipt(client);
+    const ownerDidTxId = ownerDidSubmit.transactionId.toString();
 
-    console.log('✅ Metadata set successfully');
-    console.log(`   Transaction ID: ${metadataTxId}`);
+    console.log('✅ ownerDid metadata set');
+    console.log(`   Transaction ID: ${ownerDidTxId}`);
+
+    // Set agentType (for Discovery)
+    const agentTypeParams = new ContractFunctionParameters()
+      .addUint256(agentId)
+      .addString('agentType')
+      .addBytes(Buffer.from(agentData.type, 'utf-8'));
+
+    const agentTypeTx = new ContractExecuteTransaction()
+      .setContractId(ContractId.fromString(this.identityRegistryId))
+      .setGas(300000)
+      .setFunction('setMetadata', agentTypeParams);
+
+    const agentTypeSubmit = await agentTypeTx.execute(client);
+    await agentTypeSubmit.getReceipt(client);
+    const agentTypeTxId = agentTypeSubmit.transactionId.toString();
+
+    console.log('✅ agentType metadata set');
+    console.log(`   Transaction ID: ${agentTypeTxId}`);
     console.log(`\n🎉 Agent registration complete!`);
     console.log(`   Agent ID: ${agentId}`);
     console.log(`   Agent Name: ${agentData.name}`);
@@ -344,3 +335,4 @@ class ERC8004Service {
 }
 
 export const erc8004Service = new ERC8004Service();
+export type { AgentData, AgentRegistration, AgentInfo } from '../types/erc8004.types.js';
