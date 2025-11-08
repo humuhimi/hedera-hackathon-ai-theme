@@ -1,11 +1,13 @@
 import { AgentType } from '../../types/agent'
+import { Spinner } from '../common/Spinner'
 
 interface AgentTypeCardProps {
   type: AgentType
   onCreateAgent: () => void
+  isLoading: boolean
 }
 
-export const AgentTypeCard = ({ type, onCreateAgent }: AgentTypeCardProps) => {
+export const AgentTypeCard = ({ type, onCreateAgent, isLoading }: AgentTypeCardProps) => {
   const isGiveType = type === 'give'
 
   const config = {
@@ -86,9 +88,17 @@ export const AgentTypeCard = ({ type, onCreateAgent }: AgentTypeCardProps) => {
 
         <button
           onClick={onCreateAgent}
-          className={`w-full bg-gradient-to-r ${c.buttonGradient} ${c.buttonHoverGradient} text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1`}
+          disabled={isLoading}
+          className={`w-full bg-gradient-to-r ${c.buttonGradient} ${c.buttonHoverGradient} text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
         >
-          {c.buttonText}
+          {isLoading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Spinner size="md" className="text-white" />
+              Creating...
+            </span>
+          ) : (
+            c.buttonText
+          )}
         </button>
       </div>
     </div>

@@ -42,9 +42,13 @@ model Agent {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // ERC-8004 Blockchain Registration (Minimal)
+  // ERC-8004 Blockchain Registration
   erc8004AgentId    Int?     @unique // On-chain Agent ID (ERC-721 tokenId)
   blockchainTxId    String?  // Hedera transaction ID for registration
+
+  // ERC-8004 Off-chain Data (cached from blockchain for performance)
+  tokenURI          String?  // IPFS URI for agent metadata
+  ownerDid          String?  // Owner's DID (stored on-chain and cached here)
 
   // Relations
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)

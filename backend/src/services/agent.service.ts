@@ -41,7 +41,20 @@ class AgentService {
       throw new Error('User not found');
     }
 
-    // Create agent in database
+    if (!user.did) {
+      throw new Error('User does not have a DID. Please create a DID first.');
+    }
+
+    // Step 1: Register agent on blockchain first (fail fast if this fails)
+    console.log(`🔗 Registering agent on blockchain...`);
+    const registration = await erc8004Service.registerAgent(userId, {
+      name: name,
+      type: type as 'give' | 'want',
+      description: description || ''
+    });
+    console.log(`✅ Agent registered on blockchain with ID: ${registration.agentId}`);
+
+    // Step 2: Create agent in database with blockchain info
     const agent = await prisma.agent.create({
       data: {
         userId,
@@ -49,67 +62,37 @@ class AgentService {
         name,
         description,
         status: 'active',
+        erc8004AgentId: registration.agentId,
+        blockchainTxId: registration.transactionId,
+        tokenURI: registration.tokenURI,
+        ownerDid: registration.ownerDid,
       },
     });
 
-    // Register agent on blockchain (ERC-8004)
-    try {
-      if (user.did) {
-        console.log(`🔗 Registering agent ${agent.id} on blockchain...`);
-        const registration = await erc8004Service.registerAgent(userId, {
-          name: name,
-          type: type as 'give' | 'want',
-          description: description || ''
-        });
-
-        // Update agent with blockchain info
-        await prisma.agent.update({
-          where: { id: agent.id },
-          data: {
-            erc8004AgentId: registration.agentId,
-            blockchainTxId: registration.transactionId,
-          },
-        });
-
-        console.log(`✅ Agent ${agent.id} registered on blockchain with ID: ${registration.agentId}`);
-      } else {
-        console.warn(`⚠️ User ${userId} has no DID, skipping blockchain registration`);
-      }
-    } catch (error) {
-      console.error(`Failed to register agent ${agent.id} on blockchain:`, error);
-      // Don't fail agent creation if blockchain registration fails
-    }
-
-    // Create dedicated channel in ElizaOS for this agent
+    // Step 3: Create dedicated channel in ElizaOS for this agent (optional)
     let channelId: string | null = null;
     try {
-      // Step 1: Get ElizaOS agent ID dynamically by name
+      // Step 3-1: Get ElizaOS agent ID dynamically by name
       const agentName = type === 'give' ? 'SellerAgent' : 'BuyerAgent';
       let elizaAgentId: string | null = null;
 
-      try {
-        const agentsResponse = await fetch(`${this.elizaOsUrl}/api/agents`);
-        if (agentsResponse.ok) {
-          const agentsData = await agentsResponse.json() as { data?: { agents?: Array<{ id: string; name: string }> } };
-          const agents = agentsData.data?.agents || [];
-          const elizaAgent = agents.find((a) => a.name === agentName);
-          
-          if (elizaAgent) {
-            elizaAgentId = elizaAgent.id;
-            console.log(`✅ Found ${agentName} with ID: ${elizaAgentId}`);
-          } else {
-            console.warn(`⚠️ ${agentName} not found in ElizaOS, available agents:`, agents.map((a) => a.name));
-          }
+      const agentsResponse = await fetch(`${this.elizaOsUrl}/api/agents`);
+      if (agentsResponse.ok) {
+        const agentsData = await agentsResponse.json() as { data?: { agents?: Array<{ id: string; name: string }> } };
+        const agents = agentsData.data?.agents || [];
+        const elizaAgent = agents.find((a) => a.name === agentName);
+
+        if (elizaAgent) {
+          elizaAgentId = elizaAgent.id;
+          console.log(`✅ Found ${agentName} with ID: ${elizaAgentId}`);
+        } else {
+          throw new Error(`${agentName} not found in ElizaOS. Available: ${agents.map((a) => a.name).join(', ')}`);
         }
-      } catch (error) {
-        console.warn(`Failed to fetch ElizaOS agents:`, error);
+      } else {
+        throw new Error('Failed to fetch ElizaOS agents');
       }
 
-      if (!elizaAgentId) {
-        throw new Error(`Failed to find ${agentName} in ElizaOS`);
-      }
-
-      // Step 2: Create channel
+      // Step 3-2: Create channel
       const channelResponse = await fetch(`${this.elizaOsUrl}/api/messaging/channels`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,37 +103,47 @@ class AgentService {
         }),
       });
 
-      if (channelResponse.ok) {
-        const channelData = await channelResponse.json() as { data: { channel: { id: string } } };
-        channelId = channelData.data.channel.id;
-        
-        // Step 3: Add ElizaOS agent to channel as participant
-        const addAgentResponse = await fetch(
-          `${this.elizaOsUrl}/api/messaging/central-channels/${channelId}/agents`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agentId: elizaAgentId }),
-          }
-        );
+      if (!channelResponse.ok) {
+        throw new Error(`Failed to create channel: ${await channelResponse.text()}`);
+      }
 
-        if (addAgentResponse.ok) {
-          console.log(`✅ Added ${agentName} (${elizaAgentId}) to channel ${channelId}`);
-        } else {
-          console.warn(`Failed to add agent to channel: ${await addAgentResponse.text()}`);
+      const channelData = await channelResponse.json() as { data: { channel: { id: string } } };
+      channelId = channelData.data.channel.id;
+
+      // Step 3-3: Add ElizaOS agent to channel as participant
+      const addAgentResponse = await fetch(
+        `${this.elizaOsUrl}/api/messaging/central-channels/${channelId}/agents`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId: elizaAgentId }),
         }
-        
-        // Step 4: Update agent with channelId
+      );
+
+      if (!addAgentResponse.ok) {
+        console.warn(`⚠️ Failed to add agent to channel: ${await addAgentResponse.text()}`);
+      } else {
+        console.log(`✅ Added ${agentName} (${elizaAgentId}) to channel ${channelId}`);
+      }
+
+      console.log(`✅ Created ElizaOS channel ${channelId} for agent ${agent.id}`);
+    } catch (error) {
+      console.warn(`⚠️ ElizaOS channel creation failed:`, error instanceof Error ? error.message : error);
+      // Channel creation failed, but agent is still created
+    }
+
+    // Step 4: Update agent with channelId if channel was created successfully
+    if (channelId) {
+      try {
         await prisma.agent.update({
           where: { id: agent.id },
           data: { channelId },
         });
-        
-        console.log(`✅ Created ElizaOS channel ${channelId} for agent ${agent.id}`);
+        console.log(`✅ Saved channelId to database`);
+      } catch (error) {
+        console.error(`❌ Failed to save channelId to database:`, error instanceof Error ? error.message : error);
+        // Channel was created but couldn't save to DB - this is logged but not critical
       }
-    } catch (error) {
-      console.warn(`Failed to create ElizaOS channel for agent ${agent.id}:`, error);
-      // Don't fail agent creation if channel creation fails
     }
 
     console.log(`✅ Agent ${agent.id} created (${type})`);

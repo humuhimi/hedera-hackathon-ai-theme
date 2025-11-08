@@ -38,6 +38,8 @@ export interface AgentData {
 export interface AgentRegistration {
   agentId: number;
   transactionId: string;
+  tokenURI: string;
+  ownerDid: string;
 }
 
 /**

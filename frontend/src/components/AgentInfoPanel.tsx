@@ -84,6 +84,64 @@ export function AgentInfoPanel({
             {new Date(agent.createdAt).toLocaleDateString()}
           </span>
         </div>
+
+        {/* ERC-8004 Agent ID */}
+        {agent.erc8004AgentId !== undefined && (
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <span className="text-sm font-medium text-gray-700">Agent ID (ERC-8004)</span>
+            <a
+              href={`https://hashscan.io/testnet/contract/0.0.7212881`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-mono text-purple-700 font-semibold hover:text-purple-900 hover:underline"
+              title="View Identity Registry Contract"
+            >
+              #{agent.erc8004AgentId} →
+            </a>
+          </div>
+        )}
+
+        {/* Registration Transaction */}
+        {agent.blockchainTxId && (
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <span className="text-sm font-medium text-gray-700">Registration Tx</span>
+            <a
+              href={`https://hashscan.io/testnet/transaction/${agent.blockchainTxId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-purple-600 hover:text-purple-900 hover:underline"
+              title="View registration transaction on HashScan"
+            >
+              View on HashScan →
+            </a>
+          </div>
+        )}
+
+        {/* IPFS Metadata */}
+        {agent.tokenURI && (
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <span className="text-sm font-medium text-gray-700">Metadata (IPFS)</span>
+            <a
+              href={agent.tokenURI.replace('ipfs://', 'https://ipfs.io/ipfs/')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-purple-600 hover:text-purple-900 hover:underline"
+              title="View agent metadata on IPFS"
+            >
+              View on IPFS →
+            </a>
+          </div>
+        )}
+
+        {/* Owner DID */}
+        {agent.ownerDid && (
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <span className="text-sm font-medium text-gray-700 block mb-1">Owner DID</span>
+            <span className="text-xs font-mono text-gray-600 break-all">
+              {agent.ownerDid}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Delete button */}

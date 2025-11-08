@@ -11,6 +11,11 @@ export interface Agent {
   status: 'active' | 'paused';
   createdAt: string;
   updatedAt: string;
+  // ERC-8004 blockchain registration
+  erc8004AgentId?: number;
+  blockchainTxId?: string;
+  tokenURI?: string;  // IPFS URI (ipfs://...)
+  ownerDid?: string;  // Owner's DID
 }
 
 export interface AgentMessage {

@@ -5,7 +5,7 @@ import { AgentList } from '../components/home/AgentList'
 import { useAgents } from '../hooks/useAgents'
 
 export function HomePage() {
-  const { agents, createAgent } = useAgents()
+  const { agents, isCreatingAgent, createAgent } = useAgents()
   const hasAgents = agents.length > 0
 
   return (
@@ -16,14 +16,26 @@ export function HomePage() {
 
           {/* Two-Column CTA Cards */}
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <AgentTypeCard type="give" onCreateAgent={() => createAgent('give')} />
-            <AgentTypeCard type="want" onCreateAgent={() => createAgent('want')} />
+            <AgentTypeCard
+              type="give"
+              onCreateAgent={() => createAgent('give')}
+              isLoading={isCreatingAgent}
+            />
+            <AgentTypeCard
+              type="want"
+              onCreateAgent={() => createAgent('want')}
+              isLoading={isCreatingAgent}
+            />
           </div>
 
           <HowToUseSection />
         </>
       ) : (
-        <AgentList agents={agents} onCreateAgent={createAgent} />
+        <AgentList
+          agents={agents}
+          onCreateAgent={createAgent}
+          isLoading={isCreatingAgent}
+        />
       )}
     </main>
   )

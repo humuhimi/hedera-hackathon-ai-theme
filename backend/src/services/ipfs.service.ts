@@ -26,8 +26,8 @@ class IPFSService {
       );
 
       console.log('📤 Uploading to IPFS via Pinata...');
-      const result = await this.pinata.upload.file(file);
-      const ipfsUri = `ipfs://${result.IpfsHash}`;
+      const result = await this.pinata.upload.public.file(file);
+      const ipfsUri = `ipfs://${result.cid}`;
 
       console.log(`✅ IPFS upload successful: ${ipfsUri}`);
       return ipfsUri;

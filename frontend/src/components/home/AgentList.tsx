@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Agent, AgentType } from '../../types/agent'
+import { Spinner } from '../common/Spinner'
 
 interface AgentListProps {
   agents: Agent[]
   onCreateAgent: (type: AgentType) => void
+  isLoading: boolean
 }
 
-export const AgentList = ({ agents, onCreateAgent }: AgentListProps) => {
+export const AgentList = ({ agents, onCreateAgent, isLoading }: AgentListProps) => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<AgentType>('give')
 
@@ -89,14 +91,26 @@ export const AgentList = ({ agents, onCreateAgent }: AgentListProps) => {
         {/* Add New Agent Card */}
         <button
           onClick={() => onCreateAgent(activeTab)}
-          className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 hover:border-orange-400 hover:bg-orange-50 transition-colors text-center group"
+          disabled={isLoading}
+          className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 hover:border-orange-400 hover:bg-orange-50 transition-colors text-center group disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
-            ➕
-          </div>
-          <p className="text-gray-600 font-medium group-hover:text-orange-600">
-            Add new {activeTab === 'give' ? 'Seller' : 'Buyer'} AI
-          </p>
+          {isLoading ? (
+            <>
+              <div className="flex items-center justify-center mb-2">
+                <Spinner size="lg" className="text-orange-500" />
+              </div>
+              <p className="text-gray-600 font-medium">Creating agent...</p>
+            </>
+          ) : (
+            <>
+              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
+                ➕
+              </div>
+              <p className="text-gray-600 font-medium group-hover:text-orange-600">
+                Add new {activeTab === 'give' ? 'Seller' : 'Buyer'} AI
+              </p>
+            </>
+          )}
         </button>
       </div>
     </div>

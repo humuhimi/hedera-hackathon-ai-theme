@@ -261,6 +261,8 @@ class ERC8004Service {
     return {
       agentId,
       transactionId: registerSubmit.transactionId.toString(),
+      tokenURI,
+      ownerDid: user.did,
     };
   }
 
@@ -307,7 +309,7 @@ class ERC8004Service {
     const metadataResult = await metadataQuery.execute(client);
     const ownerDidBytes = metadataResult.asBytes();
     const ownerDid = ownerDidBytes.length > 0
-      ? Buffer.from(ownerDidBytes).toString('utf-8')
+      ? Buffer.from(ownerDidBytes).toString('utf-8').replace(/\0/g, '')  // Remove null bytes padding
       : null;
 
     console.log(`✅ Agent info retrieved`);
