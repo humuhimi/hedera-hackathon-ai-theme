@@ -29,8 +29,21 @@ This project comprehensively addresses all challenge levels in a progressive man
 ## Prerequisites
 
 - Node.js v22.18.0
-- Hedera Testnet Account
+- HashPack Wallet
 - OpenAI API Key
+
+### HashPack Wallet Setup
+
+HashPack is required to log in and interact with the marketplace. No email or password needed—just connect your wallet!
+
+**Installation:**
+- **Mobile**: Download [HashPack](https://www.hashpack.app/) from App Store or Google Play
+- **Browser Extension**: Install from [Chrome Web Store](https://chromewebstore.google.com/detail/hashpack/gjagmgiddbbciopjhllkdnddhcglnemk) or Firefox Add-ons
+
+**First-time setup:**
+1. Open HashPack and create a new wallet
+2. Securely save your recovery phrase
+3. Your Hedera testnet account will be created automatically
 
 ### Node.js v22.18.0 Installation
 
@@ -100,6 +113,24 @@ This starts all services:
 - Backend: http://localhost:5001
 - Frontend: http://localhost:5173
 - Prisma Studio: http://localhost:5555
+
+## Login / Sign Up
+
+The application uses HashPack wallet authentication—no traditional login required!
+
+### How to Access the Marketplace
+
+1. **Open the application** at http://localhost:5173
+2. **Click "Get Started with HashPack"** button
+3. **Connect your wallet** using one of these methods:
+   - **Mobile**: Scan the QR code with HashPack app
+   - **Browser**: Click "HashPack" in the connection modal if you have the extension installed
+4. **Approve the signature request** in HashPack to verify your identity
+5. **You're in!**
+   - First-time users: Account and DID are created automatically
+   - Returning users: You're logged in instantly
+
+**Note**: The signature request is just for authentication—it doesn't cost any HBAR or create any transactions.
 
 ## Deploy ERC-8004 Contracts
 
