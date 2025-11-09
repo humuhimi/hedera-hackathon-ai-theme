@@ -29,7 +29,8 @@ This project comprehensively addresses all challenge levels in a progressive man
 ## Prerequisites
 
 - Node.js v22.18.0
-- Hedera Testnet Account
+- Hedera Testnet Account (for backend and contract deployment)
+- HashPack Wallet (Mobile App, for end users)
 - OpenAI API Key
 
 ### Node.js v22.18.0 Installation
@@ -45,6 +46,19 @@ nvm use 22.18.0
 # Verify
 node --version  # Should output: v22.18.0
 ```
+
+### HashPack Wallet Setup
+
+1. Download HashPack mobile app
+2. Create a wallet and save your recovery phrase
+3. Switch to **Hedera Testnet** in settings
+
+### Login / Sign Up
+
+1. Open http://localhost:5173 and click **"Get Started with HashPack"**
+2. In HashPack app: **Connect dApps** → Scan the QR code
+3. Approve the signature message
+4. Done! Your account and DID are created automatically on first login
 
 ## Setup
 
