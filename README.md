@@ -1,6 +1,6 @@
 # Hedera Hackathon AI Theme
 
-Hedera Hashgraph上で動作するAIエージェントマーケットプレイス
+AI Agent Marketplace built on Hedera Hashgraph
 
 ## Prerequisites
 
