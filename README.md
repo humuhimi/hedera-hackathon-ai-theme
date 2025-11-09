@@ -49,7 +49,7 @@ node --version  # Should output: v22.18.0
 
 ### HashPack Wallet Setup
 
-1. Download HashPack from [App Store](https://apps.apple.com/app/hashpack/id1548199928) or [Google Play](https://play.google.com/store/apps/details?id=com.hashpack.mobile)
+1. Download HashPack mobile app
 2. Create a wallet and save your recovery phrase
 3. Switch to **Hedera Testnet** in settings
 
