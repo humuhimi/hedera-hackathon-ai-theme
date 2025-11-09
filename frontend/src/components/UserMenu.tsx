@@ -44,7 +44,7 @@ export const UserMenu = () => {
                 }}
               >
                 <span>📊</span>
-                <span>ダッシュボード</span>
+                <span>Dashboard</span>
               </button>
 
               <button
@@ -55,7 +55,7 @@ export const UserMenu = () => {
                 }}
               >
                 <span>🏅</span>
-                <span>マイReputation</span>
+                <span>My Reputation</span>
               </button>
 
               <button
@@ -66,7 +66,7 @@ export const UserMenu = () => {
                 }}
               >
                 <span>⚙️</span>
-                <span>設定</span>
+                <span>Settings</span>
               </button>
 
               <hr className="my-2 border-gray-200" />
@@ -79,7 +79,7 @@ export const UserMenu = () => {
                 }}
               >
                 <span>🚪</span>
-                <span>ログアウト</span>
+                <span>Logout</span>
               </button>
             </div>
           </div>

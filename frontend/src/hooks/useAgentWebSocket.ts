@@ -105,7 +105,7 @@ export function useAgentWebSocket({
     // Error handling
     socket.on('error', ({ message: errorMessage }) => {
       console.error('Socket error:', errorMessage)
-      alert(`エラー: ${errorMessage}`)
+      alert(`Error: ${errorMessage}`)
       setIsSending(false)
     })
 

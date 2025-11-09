@@ -23,7 +23,7 @@ export function useAgentData(agentId: string | undefined) {
       setAgent(fetchedAgent)
     } catch (error) {
       console.error('Failed to load agent:', error)
-      alert('エージェントの読み込みに失敗しました')
+      alert('Failed to load agent')
       navigate('/home')
     } finally {
       setLoading(false)
@@ -46,23 +46,23 @@ export function useAgentData(agentId: string | undefined) {
       setAgent(updatedAgent)
     } catch (error) {
       console.error('Failed to update status:', error)
-      alert('ステータスの更新に失敗しました')
+      alert('Failed to update status')
     }
   }
 
   const deleteAgent = async () => {
-    if (!agentId || !confirm('本当にこのエージェントを削除しますか？')) return
+    if (!agentId || !confirm('Are you sure you want to delete this agent?')) return
 
     const session = sessionManager.get()
     if (!session?.token) return
 
     try {
       await api.deleteAgent(session.token, agentId)
-      alert('エージェントを削除しました')
+      alert('Agent has been deleted')
       navigate('/home')
     } catch (error) {
       console.error('Failed to delete agent:', error)
-      alert('削除に失敗しました')
+      alert('Failed to delete')
     }
   }
 
