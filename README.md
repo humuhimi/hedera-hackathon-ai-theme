@@ -58,7 +58,7 @@ node --version  # Should output: v22.18.0
 1. Open http://localhost:5173 and click **"Get Started with HashPack"**
 2. In HashPack app: **Connect dApps** → Scan the QR code
 3. Approve the signature message
-4. Done! Your account is created automatically on first login (free, no HBAR cost)
+4. Done! Your account and DID are created automatically on first login
 
 ## Setup
 
