@@ -29,7 +29,8 @@ This project comprehensively addresses all challenge levels in a progressive man
 ## Prerequisites
 
 - Node.js v22.18.0
-- HashPack Wallet (Mobile App)
+- Hedera Testnet Account (for backend and contract deployment)
+- HashPack Wallet (Mobile App, for end users)
 - OpenAI API Key
 
 ### Node.js v22.18.0 Installation
