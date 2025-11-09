@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "env:copy": "[ ! -f .env ] && cp .env.example .env || echo '.env already exists'",
+    "clean:deps": "rm -rf node_modules",
+    "clean:build": "rm -rf dist"
   },
   "dependencies": {
     "@hashgraph/hedera-wallet-connect": "^1.5.1",

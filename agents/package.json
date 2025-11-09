@@ -74,7 +74,10 @@
     "cypress:component": "bun run test:install && cypress run --component",
     "cypress:e2e": "bun run test:install && cypress run --e2e",
     "cypress:open": "bun run test:install && cypress open",
-    "build:watch": "bun run build.ts --watch"
+    "build:watch": "bun run build.ts --watch",
+    "env:copy": "[ ! -f .env ] && cp .env.example .env || echo '.env already exists'",
+    "clean:deps": "rm -rf node_modules",
+    "clean:build": "rm -rf dist"
   },
   "publishConfig": {
     "access": "public"
