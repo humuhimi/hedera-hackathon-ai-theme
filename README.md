@@ -48,29 +48,16 @@ node --version  # Should output: v22.18.0
 
 ### HashPack Wallet Setup
 
-Download HashPack mobile app from [App Store](https://apps.apple.com/app/hashpack/id1548199928) or [Google Play](https://play.google.com/store/apps/details?id=com.hashpack.mobile).
+1. Download HashPack from [App Store](https://apps.apple.com/app/hashpack/id1548199928) or [Google Play](https://play.google.com/store/apps/details?id=com.hashpack.mobile)
+2. Create a wallet and save your recovery phrase
+3. Switch to **Hedera Testnet** in settings
 
-1. Open HashPack app and create a new wallet
-2. Securely save your recovery phrase
-3. Switch to **Hedera Testnet** in app settings (this application uses testnet)
+### Login / Sign Up
 
-## Login / Sign Up
-
-This application uses HashPack wallet authentication on **Hedera Testnet**—no email or password required!
-
-### How to Login
-
-1. Open the application at http://localhost:5173
-2. Click **"Get Started with HashPack"** button
-3. A QR code will be displayed on screen
-4. Open **HashPack app** → Tap **"Connect dApps"**
-5. Tap **"QR読み込み"** (QR scan) and scan the QR code
-6. A signature message will appear in HashPack → Review and tap **"Accept"**
-7. You're logged in!
-   - First-time users: Your account and DID are created automatically on testnet
-   - Returning users: You're logged in instantly
-
-**Note**: The signature is only for authentication—it's free and doesn't cost any HBAR.
+1. Open http://localhost:5173 and click **"Get Started with HashPack"**
+2. In HashPack app: **Connect dApps** → Scan the QR code
+3. Approve the signature message
+4. Done! Your account is created automatically on first login (free, no HBAR cost)
 
 ## Setup
 
