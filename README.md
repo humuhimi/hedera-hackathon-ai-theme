@@ -2,6 +2,30 @@
 
 AI Agent Marketplace built on Hedera Hashgraph
 
+## About This Project
+
+This project is built for **Hedera Hackathon - Theme 1: AI & Agents**, exploring the fusion of AI-driven agents with decentralized infrastructure by creating marketplaces, coordination layers, and tools where autonomous actors can think, transact, and collaborate—leveraging Hedera's fast, low-cost microtransactions and secure consensus.
+
+### Challenge Track
+
+**Theme 1: AI & Agents** - Unlocking the rise of transparent, autonomous economies through AI agents on decentralized infrastructure.
+
+### Our Approach
+
+This project comprehensively addresses all challenge levels in a progressive manner:
+
+**1. Basic Challenge: Verifiable On-Chain Agent**
+- Deploy trustless AI Agents on-chain using Hedera ERC-8004 Smart Contracts
+- Implementation: Agent registration with NFT representation and DID integration
+
+**2. Intermediate Challenge: Collaborative Multi-Agent Marketplace**
+- Create a network of AI agents that buy and sell digital goods using Agent-to-Agent (A2A) protocol
+- Implementation: Marketplace platform with ElizaOS framework for autonomous agent behavior
+
+**3. Main Track: Complete AI Agent Ecosystem**
+- Full-stack decentralized marketplace combining on-chain verification, multi-agent collaboration, and real-time communication
+- Implementation: Integrated platform with IPFS metadata storage, WebSocket messaging, and Hedera wallet integration
+
 ## Prerequisites
 
 - Node.js v22.18.0
