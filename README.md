@@ -19,8 +19,10 @@ hedera-hackathon-ai-theme/
 
 - **Node.js** >= 18.x
 - **npm** >= 9.x
-- **PostgreSQL** (for backend database)
 - **Bun** (for agents workspace)
+
+**Optional:**
+- **PostgreSQL** (SQLite is used by default for development)
 
 ### 1. Clone the Repository
 
@@ -45,7 +47,6 @@ npm run setup
 This will:
 - Install all dependencies for all workspaces
 - Copy `.env.example` to `.env` in each workspace
-- Set up the database (generate Prisma client and run migrations)
 
 **OR** follow these manual steps:
 
@@ -55,9 +56,6 @@ npm run install:all
 
 # Set up environment variables
 npm run env:setup
-
-# Set up database
-npm run db:setup
 ```
 
 ### 3. Configure Environment Variables
@@ -73,11 +71,17 @@ HEDERA_PRIVATE_KEY=your_private_key
 
 #### `backend/.env`
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/hedera_hackathon
+# SQLite (default for development)
+DATABASE_URL=file:./prisma/dev.db
+
+# Or use PostgreSQL for production-like environment
+# DATABASE_URL=postgresql://user:password@localhost:5432/hedera_hackathon
+
 HEDERA_NETWORK=testnet
-HEDERA_ACCOUNT_ID=your_account_id
-HEDERA_PRIVATE_KEY=your_private_key
+HEDERA_MANAGER_ACCOUNT_ID=your_account_id
+HEDERA_MANAGER_PRIVATE_KEY=your_private_key
 PINATA_JWT=your_pinata_jwt
+JWT_SECRET=your-super-secret-jwt-key-min-32-characters-required
 ```
 
 #### `frontend/.env`
@@ -92,7 +96,17 @@ SERVER_PORT=3333
 DATABASE_URL=postgresql://user:password@localhost:5432/agents
 ```
 
-### 4. Start Development
+### 4. Set Up Database
+
+After configuring your environment variables, set up the database:
+
+```bash
+npm run db:setup
+```
+
+This will generate the Prisma client and sync your database schema.
+
+### 5. Start Development
 
 ```bash
 npm run dev
@@ -110,9 +124,12 @@ This will start all services concurrently:
 
 | Command | Description |
 |---------|-------------|
-| `npm run setup` | Complete initial setup (install, env, db) |
+| `npm run setup` | Initial setup (install dependencies and copy .env files) |
+| `npm run setup:full` | Complete setup including database |
 | `npm run install:all` | Install dependencies for all workspaces |
 | `npm run env:setup` | Copy .env.example files to .env |
+| `npm run db:setup` | Generate Prisma client and sync database schema |
+| `npm run db:reset` | Reset database (WARNING: deletes all data) |
 | `npm run dev` | Start all services in development mode |
 | `npm run start` | Start all services in production mode |
 | `npm run build` | Build all workspaces |
@@ -144,26 +161,38 @@ npm run build:agents    # Build agents
 
 ## 🗄️ Database Management
 
-### Prisma Commands
+### Quick Database Commands
 
 ```bash
-# Generate Prisma client
-cd backend && npx prisma generate
+# Set up database (from root)
+npm run db:setup
 
-# Run migrations
-cd backend && npx prisma migrate dev
+# Reset database - WARNING: deletes all data (from root)
+npm run db:reset
 
-# Deploy migrations (production)
-cd backend && npx prisma migrate deploy
-
-# Open Prisma Studio
-cd backend && npx prisma studio
+# Open Prisma Studio (from root)
+npm run dev:db
 ```
 
-Or use the npm scripts:
+### Backend-specific Database Commands
+
 ```bash
-npm run dev:db                  # Open Prisma Studio
-cd backend && npm run db:migrate  # Run migrations
+cd backend
+
+# Generate Prisma client only
+npm run db:generate
+
+# Sync schema without migrations (fast, for development)
+npm run db:push
+
+# Create and run migrations (recommended for production)
+npm run db:migrate
+
+# Reset database - WARNING: deletes all data
+npm run db:reset
+
+# Open Prisma Studio
+npm run db:studio
 ```
 
 ## 🏗️ Architecture
