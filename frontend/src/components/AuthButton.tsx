@@ -26,11 +26,11 @@ export const AuthButton = () => {
   const getStatusMessage = () => {
     switch (loginStatus) {
       case 'connecting':
-        return '🔗 ウォレット接続中...';
+        return '🔗 Connecting wallet...';
       case 'authenticating':
-        return '🔐 認証中...';
+        return '🔐 Authenticating...';
       case 'success':
-        return '✅ 認証成功！';
+        return '✅ Authentication successful!';
       default:
         return null;
     }
@@ -82,18 +82,18 @@ export const AuthButton = () => {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
             </svg>
-            <span>接続中...</span>
+            <span>Connecting...</span>
           </>
         ) : (
           <>
             <span className="text-xl">🔗</span>
-            <span>HashPackで始める</span>
+            <span>Get Started with HashPack</span>
           </>
         )}
       </button>
 
       <p className="text-sm text-gray-600">
-        ※メールアドレス・パスワード不要
+        * No email or password required
       </p>
 
       {statusMessage && (
@@ -104,7 +104,7 @@ export const AuthButton = () => {
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg max-w-md">
-          <p className="text-sm font-medium">接続エラー</p>
+          <p className="text-sm font-medium">Connection Error</p>
           <p className="text-sm">{error}</p>
         </div>
       )}

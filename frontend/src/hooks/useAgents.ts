@@ -39,7 +39,7 @@ export function useAgents() {
       setIsCreatingAgent(true)
       const session = sessionManager.get()
       if (!session?.token) {
-        alert('認証トークンがありません。再ログインしてください。')
+        alert('Authentication token is missing. Please log in again.')
         return
       }
       const token = session.token
@@ -54,10 +54,10 @@ export function useAgents() {
       })
 
       await loadAgents()
-      alert(`${name}を作成しました！`)
+      alert(`${name} has been created!`)
     } catch (error) {
       console.error('Failed to create agent:', error)
-      alert('エージェントの作成に失敗しました。')
+      alert('Failed to create agent.')
     } finally {
       setIsCreatingAgent(false)
     }

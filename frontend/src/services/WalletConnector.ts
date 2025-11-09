@@ -48,7 +48,7 @@ export class WalletConnector {
 
     const metadata = {
       name: 'Jimo market',
-      description: 'AIエージェントで地域取引を自動化',
+      description: 'Automate local trading with AI agents',
       url: window.location.origin,
       icons: [`${window.location.origin}/icon.png`]
     };

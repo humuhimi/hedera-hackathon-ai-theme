@@ -44,11 +44,11 @@ export const SignatureModal = ({ isOpen, onClose }: SignatureModalProps) => {
 
         {/* Title - Larger and bolder */}
         <h3 className="text-3xl font-black text-center text-gray-900 mb-3">
-          ウォレットを確認してください
+          Please check your wallet
         </h3>
-        
+
         <p className="text-center text-lg text-purple-600 font-semibold mb-8 animate-pulse">
-          HashPackで署名を承認してください
+          Please approve the signature in HashPack
         </p>
 
         {/* Steps - Larger and clearer */}
@@ -59,9 +59,9 @@ export const SignatureModal = ({ isOpen, onClose }: SignatureModalProps) => {
             </div>
             <div className="flex-1">
               <p className="font-semibold text-gray-800">
-                HashPack 拡張機能を開く
+                Open HashPack extension
               </p>
-              <p className="text-sm text-gray-500">ブラウザ右上のアイコンをクリック</p>
+              <p className="text-sm text-gray-500">Click the icon in the top right of your browser</p>
             </div>
           </div>
 
@@ -71,9 +71,9 @@ export const SignatureModal = ({ isOpen, onClose }: SignatureModalProps) => {
             </div>
             <div className="flex-1">
               <p className="font-semibold text-gray-800">
-                署名リクエストを確認
+                Confirm signature request
               </p>
-              <p className="text-sm text-gray-500">メッセージ内容を確認</p>
+              <p className="text-sm text-gray-500">Review message content</p>
             </div>
           </div>
 
@@ -83,9 +83,9 @@ export const SignatureModal = ({ isOpen, onClose }: SignatureModalProps) => {
             </div>
             <div className="flex-1">
               <p className="font-bold text-purple-700">
-                「承認」ボタンをクリック
+                Click "Approve" button
               </p>
-              <p className="text-sm text-purple-600">完了まであと一歩！</p>
+              <p className="text-sm text-purple-600">Almost done!</p>
             </div>
           </div>
         </div>
@@ -98,7 +98,7 @@ export const SignatureModal = ({ isOpen, onClose }: SignatureModalProps) => {
               <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
               <div className="w-3 h-3 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
             </div>
-            <span className="text-lg font-semibold text-purple-700">承認待ち{dots}</span>
+            <span className="text-lg font-semibold text-purple-700">Waiting for approval{dots}</span>
           </div>
         </div>
 
@@ -110,7 +110,7 @@ export const SignatureModal = ({ isOpen, onClose }: SignatureModalProps) => {
           }}
           className="w-full py-3 px-4 text-gray-600 hover:text-gray-800 text-base font-semibold transition-all hover:bg-gray-50 rounded-xl"
         >
-          キャンセル
+          Cancel
         </button>
       </div>
 

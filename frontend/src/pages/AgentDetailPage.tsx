@@ -49,12 +49,12 @@ export function AgentDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl text-gray-600 mb-4">エージェントが見つかりません</p>
+          <p className="text-xl text-gray-600 mb-4">Agent not found</p>
           <button
             onClick={() => navigate('/home')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            ホームに戻る
+            Back to Home
           </button>
         </div>
       </div>
