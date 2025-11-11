@@ -3,6 +3,8 @@
  * SellerとBuyerエージェントが自動的にやりとりするテスト
  */
 
+import 'dotenv/config';
+
 interface A2AMessage {
   jsonrpc: '2.0';
   method: 'message/send';
@@ -27,20 +29,79 @@ interface A2AResponse {
   };
 }
 
-// エージェント情報
-const SELLER_AGENT = {
-  id: 'f94b12ef-5fcd-0811-a35b-7b19aa7b22c3',
-  name: 'SellerAgent',
-  url: 'http://127.0.0.1:3333/agents/f94b12ef-5fcd-0811-a35b-7b19aa7b22c3/a2a/',
-};
-
-const BUYER_AGENT = {
-  id: 'dc8e3cb0-ac89-002b-be82-305ed0e65a26',
-  name: 'BuyerAgent',
-  url: 'http://127.0.0.1:3333/agents/dc8e3cb0-ac89-002b-be82-305ed0e65a26/a2a/',
-};
+// エージェント情報（動的に取得される）
+let SELLER_AGENT: { id: string; name: string; url: string };
+let BUYER_AGENT: { id: string; name: string; url: string };
 
 const MAX_MESSAGES = 8;
+const SERVER_PORT = process.env.SERVER_PORT;
+const ELIZAOS_URL = `http://127.0.0.1:${SERVER_PORT}`;
+
+// エージェントをセットアップ（動的作成）
+async function setupAgents() {
+  console.log('🔨 Creating test agents...');
+
+  // Seller作成
+  const sellerResponse = await fetch(`${ELIZAOS_URL}/internal/agents/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'give' })
+  });
+
+  if (!sellerResponse.ok) {
+    throw new Error(`Failed to create seller agent: ${sellerResponse.status}`);
+  }
+
+  const seller = await sellerResponse.json();
+
+  // Buyer作成
+  const buyerResponse = await fetch(`${ELIZAOS_URL}/internal/agents/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'want' })
+  });
+
+  if (!buyerResponse.ok) {
+    throw new Error(`Failed to create buyer agent: ${buyerResponse.status}`);
+  }
+
+  const buyer = await buyerResponse.json();
+
+  SELLER_AGENT = {
+    id: seller.agentId,
+    name: seller.name,
+    url: `${ELIZAOS_URL}/agents/${seller.agentId}/a2a/`
+  };
+
+  BUYER_AGENT = {
+    id: buyer.agentId,
+    name: buyer.name,
+    url: `${ELIZAOS_URL}/agents/${buyer.agentId}/a2a/`
+  };
+
+  console.log(`✅ Created ${SELLER_AGENT.name} (${SELLER_AGENT.id})`);
+  console.log(`✅ Created ${BUYER_AGENT.name} (${BUYER_AGENT.id})`);
+  console.log('');
+}
+
+// エージェントをクリーンアップ（削除）
+async function cleanupAgents() {
+  console.log('\n🧹 Cleaning up test agents...');
+
+  if (SELLER_AGENT) {
+    await fetch(`${ELIZAOS_URL}/internal/agents/${SELLER_AGENT.id}`, {
+      method: 'DELETE'
+    });
+    console.log(`✅ Deleted ${SELLER_AGENT.name}`);
+  }
+
+  if (BUYER_AGENT) {
+    await fetch(`${ELIZAOS_URL}/internal/agents/${BUYER_AGENT.id}`, {
+      method: 'DELETE'
+    });
+    console.log(`✅ Deleted ${BUYER_AGENT.name}`);
+  }
+}
 
 // メッセージ送信関数
 async function sendMessage(
@@ -97,9 +158,18 @@ async function runConversation() {
   console.log('');
 
   let messageCount = 0;
-  let currentSender = BUYER_AGENT; // Buyerから開始
+  let currentSender = BUYER_AGENT; // Start with Buyer
   let currentReceiver = SELLER_AGENT;
   let lastResponse = 'Hello! I have some questions about your products. What kind of items do you sell?';
+
+  // Add initial message to history
+  conversationHistory.push({
+    sender: currentSender.name,
+    receiver: currentReceiver.name,
+    text: lastResponse,
+    messageId: 'msg-initial-0',
+    timestamp: new Date().toISOString(),
+  });
 
   while (messageCount < MAX_MESSAGES) {
     messageCount++;
@@ -127,15 +197,7 @@ async function runConversation() {
       console.log(`✅ Response received:`);
       console.log(`   ${responseText}`);
 
-      // 会話履歴に追加
-      conversationHistory.push({
-        sender: currentSender.name,
-        receiver: currentReceiver.name,
-        text: lastResponse,
-        messageId,
-        timestamp: isoTimestamp,
-      });
-
+      // Add response to history (only responses are recorded to avoid duplication)
       conversationHistory.push({
         sender: currentReceiver.name,
         receiver: currentSender.name,
@@ -144,13 +206,13 @@ async function runConversation() {
         timestamp: new Date().toISOString(),
       });
 
-      // 次のメッセージの準備
+      // Prepare next message
       lastResponse = responseText;
 
-      // 送信者と受信者を入れ替え
+      // Swap sender and receiver
       [currentSender, currentReceiver] = [currentReceiver, currentSender];
 
-      // 少し待機
+      // Wait before next message
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } catch (error) {
       console.error(`❌ Error sending message:`, error);
@@ -158,7 +220,7 @@ async function runConversation() {
     }
   }
 
-  // 結果サマリー
+  // Summary
   console.log('\n');
   console.log('='.repeat(60));
   console.log('📊 Conversation Summary');
@@ -175,7 +237,7 @@ async function runConversation() {
     console.log('');
   });
 
-  // JSON出力
+  // JSON output
   const output = {
     test: 'A2A Conversation Test',
     timestamp: new Date().toISOString(),
@@ -195,20 +257,39 @@ async function runConversation() {
   const outputPath = './tests/a2a_conversation_result.json';
   console.log(`📄 JSON Output saved to ${outputPath}`);
 
-  // ファイルに保存
+  // Save to file
   const fs = await import('fs/promises');
   await fs.writeFile(outputPath, JSON.stringify(output, null, 2));
 
   return output;
 }
 
-// 実行
-runConversation()
-  .then(() => {
+// Main execution
+async function main() {
+  try {
+    // Setup agents
+    await setupAgents();
+
+    // Run conversation
+    await runConversation();
+
+    // Cleanup
+    await cleanupAgents();
+
     console.log('✅ Test completed successfully!');
     process.exit(0);
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error('❌ Test failed:', error);
+
+    // Try cleanup even on error
+    try {
+      await cleanupAgents();
+    } catch (cleanupError) {
+      console.error('Failed to cleanup:', cleanupError);
+    }
+
     process.exit(1);
-  });
+  }
+}
+
+main();

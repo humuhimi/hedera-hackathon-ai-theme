@@ -47,7 +47,7 @@ class AgentService {
 
     // Step 1: Create agent instance in ElizaOS (this generates the agentId)
     console.log(`🔨 Creating ${type === 'give' ? 'Seller' : 'Buyer'} agent in ElizaOS...`);
-    const elizaResponse = await fetch(`${this.elizaOsUrl}/api/internal/agents/create`, {
+    const elizaResponse = await fetch(`${this.elizaOsUrl}/internal/agents/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type }),

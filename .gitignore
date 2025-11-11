@@ -43,6 +43,7 @@ Thumbs.db
 coverage/
 *.lcov
 .nyc_output
+agents/tests/a2a_conversation_result.json
 
 # Database
 *.db

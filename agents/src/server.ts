@@ -31,15 +31,8 @@ async function startServer() {
     agents: [],
   });
 
-  // Initialize A2A middleware (routes registered, but no agents yet)
-  initializeA2AMiddleware(server.app);
-
-  console.log('✅ Server ready (0 agents - will be created via API)');
-  console.log(`📡 Server: http://localhost:${process.env.SERVER_PORT || '3333'}`);
-  console.log(`💬 REST API + Socket.IO + A2A Protocol available`);
-
-  // Dynamic agent creation API
-  server.app.post('/api/internal/agents/create', async (req, res) => {
+  // Register custom API routes (using /internal/* to avoid ElizaOS /api/* routing)
+  server.app.post('/internal/agents/create', async (req, res) => {
     try {
       const { type } = req.body;
 
@@ -77,11 +70,9 @@ async function startServer() {
     }
   });
 
-  // Agent deletion API
-  server.app.delete('/api/internal/agents/:agentId', async (req, res) => {
+  server.app.delete('/internal/agents/:agentId', async (req, res) => {
     try {
-      const { agentId } = req.params;
-
+      const agentId = req.params.agentId;
       console.log(`🗑️ Deleting agent ${agentId}...`);
 
       await server.stopAgents([agentId as UUID]);
@@ -99,9 +90,15 @@ async function startServer() {
     }
   });
 
+  // Initialize A2A middleware (routes registered, but no agents yet)
+  initializeA2AMiddleware(server.app);
+
+  console.log('✅ Server ready (0 agents - will be created via API)');
+  console.log(`📡 Server: http://localhost:${process.env.SERVER_PORT}`);
+  console.log(`💬 REST API + Socket.IO + A2A Protocol available`);
   console.log('\n📝 Internal APIs:');
-  console.log('   POST /api/internal/agents/create - Create new agent');
-  console.log('   DELETE /api/internal/agents/:agentId - Delete agent');
+  console.log('   POST /internal/agents/create - Create new agent');
+  console.log('   DELETE /internal/agents/:agentId - Delete agent');
 }
 
 // Start server
