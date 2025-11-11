@@ -1,9 +1,9 @@
 // Load environment variables FIRST before any other imports
 import 'dotenv/config';
 
-import express, { Request, Response } from 'express';
+import express, { Request } from 'express';
 import cors from 'cors';
-import { createProxyMiddleware, Filter } from 'http-proxy-middleware';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import type { IncomingMessage, ClientRequest, ServerResponse } from 'http';

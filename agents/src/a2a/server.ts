@@ -5,7 +5,6 @@
 
 import { AgentCard } from '@a2a-js/sdk';
 import { DefaultRequestHandler, JsonRpcTransportHandler } from '@a2a-js/sdk/server';
-import { A2AExpressApp } from '@a2a-js/sdk/server/express';
 import { ElizaTaskStore } from './task-store.js';
 import { ElizaAgentExecutor } from './executor.js';
 import type { IAgentRuntime, UUID } from '@elizaos/core';

@@ -175,7 +175,6 @@ async function runConversation() {
     messageCount++;
     const timestamp = Date.now();
     const messageId = `msg-${timestamp}-${messageCount}`;
-    const isoTimestamp = new Date().toISOString();
 
     console.log(`\n📨 Message ${messageCount}/${MAX_MESSAGES}`);
     console.log(`From: ${currentSender.name}`);

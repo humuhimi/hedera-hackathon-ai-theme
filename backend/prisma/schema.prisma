@@ -51,8 +51,8 @@ model Agent {
   ownerDid          String?  // Owner's DID (stored on-chain and cached here)
 
   // Reputation (for Agent Discovery)
-  reputationScore      Int      @default(1000)  // デフォルト1000ポイント
-  totalTransactions    Int      @default(0)      // 総取引数
+  reputationScore      Int      @default(1000)  // Default 1000 points
+  totalTransactions    Int      @default(0)      // Total number of transactions
 
   // Relations
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
