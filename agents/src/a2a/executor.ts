@@ -1,12 +1,13 @@
 /**
  * ElizaOS Runtime-based AgentExecutor for A2A SDK
- * Uses ElizaOS runtime to process A2A requests
+ * Uses OpenAI API directly for simplicity
  */
 
 import { AgentExecutor, RequestContext, ExecutionEventBus } from '@a2a-js/sdk/server';
 import { Message } from '@a2a-js/sdk';
 import type { IAgentRuntime, UUID } from '@elizaos/core';
 import { v4 as uuidv4 } from 'uuid';
+import OpenAI from 'openai';
 
 export class ElizaAgentExecutor implements AgentExecutor {
   private runtime: IAgentRuntime;
@@ -30,15 +31,30 @@ export class ElizaAgentExecutor implements AgentExecutor {
         | undefined;
       const userMessage = textPart?.text || '';
 
-      // Process message through ElizaOS runtime
-      const response = await this.runtime.processActions({
-        entityId: this.runtime.agentId,
-        roomId: this.roomId,
-        message: {
-          entityId: uuidv4() as UUID, // User entity ID
-          content: { text: userMessage },
-        },
+      // Get API key from runtime settings
+      const apiKey = this.runtime.getSetting('OPENAI_API_KEY') || process.env.OPENAI_API_KEY;
+
+      if (!apiKey) {
+        throw new Error('OPENAI_API_KEY not found in runtime settings or environment');
+      }
+
+      const openai = new OpenAI({
+        apiKey: apiKey,
       });
+
+      const systemPrompt = this.runtime.character.system || 'You are a helpful AI assistant.';
+      const model = this.runtime.character.settings?.model || 'gpt-4o-mini';
+
+      const completion = await openai.chat.completions.create({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        max_tokens: 1000,
+      });
+
+      const responseContent = completion.choices[0]?.message?.content || 'I apologize, but I was unable to generate a response.';
 
       // Send response back through A2A
       const responseMessage: Message = {
@@ -48,7 +64,7 @@ export class ElizaAgentExecutor implements AgentExecutor {
         parts: [
           {
             kind: 'text',
-            text: response || 'Message processed',
+            text: responseContent || 'Message processed',
           },
         ],
       };

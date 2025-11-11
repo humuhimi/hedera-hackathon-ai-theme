@@ -24,9 +24,9 @@ app.use(cors({
   origin: FRONTEND_URL,
   credentials: true
 }));
-app.use(express.json());
 
 // A2A Protocol Proxy - Forward all /agents/*/a2a/** requests to ElizaOS server
+// CRITICAL: Must be BEFORE express.json() to avoid body parsing errors
 // CRITICAL: Use app.use without path to avoid path stripping
 const a2aFilter = (pathname: string): boolean => {
   return pathname.startsWith('/agents/') && pathname.includes('/a2a');
@@ -58,6 +58,9 @@ app.use(createProxyMiddleware({
     }
   }
 } as Parameters<typeof createProxyMiddleware>[0]));
+
+// JSON body parser - AFTER A2A proxy to avoid parsing A2A requests
+app.use(express.json());
 
 // Routes
 app.use('/auth', authRoutes);

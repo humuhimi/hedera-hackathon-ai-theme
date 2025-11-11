@@ -1,0 +1,135 @@
+{
+  "test": "A2A Conversation Test",
+  "timestamp": "2025-11-11T04:37:42.487Z",
+  "agents": {
+    "seller": {
+      "id": "f94b12ef-5fcd-0811-a35b-7b19aa7b22c3",
+      "name": "SellerAgent",
+      "url": "http://127.0.0.1:3333/agents/f94b12ef-5fcd-0811-a35b-7b19aa7b22c3/a2a/"
+    },
+    "buyer": {
+      "id": "dc8e3cb0-ac89-002b-be82-305ed0e65a26",
+      "name": "BuyerAgent",
+      "url": "http://127.0.0.1:3333/agents/dc8e3cb0-ac89-002b-be82-305ed0e65a26/a2a/"
+    }
+  },
+  "stats": {
+    "totalMessages": 16,
+    "maxMessages": 8,
+    "completed": true
+  },
+  "conversation": [
+    {
+      "sender": "BuyerAgent",
+      "receiver": "SellerAgent",
+      "text": "Hello! I have some questions about your products. What kind of items do you sell?",
+      "messageId": "msg-1762835839495-1",
+      "timestamp": "2025-11-11T04:37:19.495Z"
+    },
+    {
+      "sender": "SellerAgent",
+      "receiver": "BuyerAgent",
+      "text": "Hello! I specialize in listing a variety of items, including furniture, electronics, clothing, and more. If you have specific items in mind that you're interested in, please let me know, and I'll be happy to provide more details or answer any questions you may have!",
+      "messageId": "83c483d6-df8d-4fb2-9c62-59d769c25fcc",
+      "timestamp": "2025-11-11T04:37:22.166Z"
+    },
+    {
+      "sender": "SellerAgent",
+      "receiver": "BuyerAgent",
+      "text": "Hello! I specialize in listing a variety of items, including furniture, electronics, clothing, and more. If you have specific items in mind that you're interested in, please let me know, and I'll be happy to provide more details or answer any questions you may have!",
+      "messageId": "msg-1762835843168-2",
+      "timestamp": "2025-11-11T04:37:23.168Z"
+    },
+    {
+      "sender": "BuyerAgent",
+      "receiver": "SellerAgent",
+      "text": "Hello! I'm here to assist with buying items rather than selling. If you're looking for any specific items in categories like furniture, electronics, or clothing, please let me know what you need, and I can help you find them!",
+      "messageId": "2600b44a-6488-4e92-9274-343d509c1f18",
+      "timestamp": "2025-11-11T04:37:24.807Z"
+    },
+    {
+      "sender": "BuyerAgent",
+      "receiver": "SellerAgent",
+      "text": "Hello! I'm here to assist with buying items rather than selling. If you're looking for any specific items in categories like furniture, electronics, or clothing, please let me know what you need, and I can help you find them!",
+      "messageId": "msg-1762835845808-3",
+      "timestamp": "2025-11-11T04:37:25.808Z"
+    },
+    {
+      "sender": "SellerAgent",
+      "receiver": "BuyerAgent",
+      "text": "Hello! It seems there was a mix-up. I'm here to help you sell items rather than assist with buying. If you have items you'd like to list, feel free to provide the details, and I can create a listing for you! If you have any questions about the selling process or need assistance, just let me know.",
+      "messageId": "f0a6e58c-ff75-40ad-b967-b2ace633792b",
+      "timestamp": "2025-11-11T04:37:27.689Z"
+    },
+    {
+      "sender": "SellerAgent",
+      "receiver": "BuyerAgent",
+      "text": "Hello! It seems there was a mix-up. I'm here to help you sell items rather than assist with buying. If you have items you'd like to list, feel free to provide the details, and I can create a listing for you! If you have any questions about the selling process or need assistance, just let me know.",
+      "messageId": "msg-1762835848691-4",
+      "timestamp": "2025-11-11T04:37:28.691Z"
+    },
+    {
+      "sender": "BuyerAgent",
+      "receiver": "SellerAgent",
+      "text": "It looks like there was a misunderstanding. I'm here to help you buy items instead of sell them. If you're looking for something specific or need assistance with purchasing, I can assist with that! Just let me know what you’re looking for, and I’ll help you find it.",
+      "messageId": "f303dcfc-a132-4e9a-b428-d614fbd88bc4",
+      "timestamp": "2025-11-11T04:37:30.108Z"
+    },
+    {
+      "sender": "BuyerAgent",
+      "receiver": "SellerAgent",
+      "text": "It looks like there was a misunderstanding. I'm here to help you buy items instead of sell them. If you're looking for something specific or need assistance with purchasing, I can assist with that! Just let me know what you’re looking for, and I’ll help you find it.",
+      "messageId": "msg-1762835851108-5",
+      "timestamp": "2025-11-11T04:37:31.108Z"
+    },
+    {
+      "sender": "SellerAgent",
+      "receiver": "BuyerAgent",
+      "text": "I'm actually here to help you sell items! If you have any items you'd like to list for sale or if you have questions about selling, please let me know. I’d be happy to assist you with creating listings, responding to buyer inquiries, or negotiating prices. Just tell me what you need!",
+      "messageId": "0a0f4336-cef7-41a9-a76b-82d5f95ac726",
+      "timestamp": "2025-11-11T04:37:33.127Z"
+    },
+    {
+      "sender": "SellerAgent",
+      "receiver": "BuyerAgent",
+      "text": "I'm actually here to help you sell items! If you have any items you'd like to list for sale or if you have questions about selling, please let me know. I’d be happy to assist you with creating listings, responding to buyer inquiries, or negotiating prices. Just tell me what you need!",
+      "messageId": "msg-1762835854128-6",
+      "timestamp": "2025-11-11T04:37:34.128Z"
+    },
+    {
+      "sender": "BuyerAgent",
+      "receiver": "SellerAgent",
+      "text": "I'm here to help you find and purchase items rather than sell them. If you're looking for furniture, electronics, clothing, or anything else, please let me know what you're interested in, and I can assist with searching for those items, contacting sellers, negotiating prices, and arranging logistics. Just let me know what you need!",
+      "messageId": "97d34a79-892c-48ad-947e-cf1e8997a2a7",
+      "timestamp": "2025-11-11T04:37:35.820Z"
+    },
+    {
+      "sender": "BuyerAgent",
+      "receiver": "SellerAgent",
+      "text": "I'm here to help you find and purchase items rather than sell them. If you're looking for furniture, electronics, clothing, or anything else, please let me know what you're interested in, and I can assist with searching for those items, contacting sellers, negotiating prices, and arranging logistics. Just let me know what you need!",
+      "messageId": "msg-1762835856821-7",
+      "timestamp": "2025-11-11T04:37:36.821Z"
+    },
+    {
+      "sender": "SellerAgent",
+      "receiver": "BuyerAgent",
+      "text": "Thank you for your offer, but I'm here to assist with selling items rather than buying them. If you have any items you're looking to sell, or if you need help with a specific listing, feel free to let me know! I'm ready to provide assistance with descriptions, pricing, and managing listings. How can I help you today?",
+      "messageId": "95cfd60b-52f6-4a5b-b0f8-432e8aa0da7a",
+      "timestamp": "2025-11-11T04:37:38.754Z"
+    },
+    {
+      "sender": "SellerAgent",
+      "receiver": "BuyerAgent",
+      "text": "Thank you for your offer, but I'm here to assist with selling items rather than buying them. If you have any items you're looking to sell, or if you need help with a specific listing, feel free to let me know! I'm ready to provide assistance with descriptions, pricing, and managing listings. How can I help you today?",
+      "messageId": "msg-1762835859755-8",
+      "timestamp": "2025-11-11T04:37:39.755Z"
+    },
+    {
+      "sender": "BuyerAgent",
+      "receiver": "SellerAgent",
+      "text": "I appreciate your response, but I'm here to help buy items rather than sell them. If you have anything you'd like to sell or any listings available, please share that with me, and I can express interest or inquire further. Thank you!",
+      "messageId": "c3cdb05f-cf17-4613-9ff5-eba73dc7637c",
+      "timestamp": "2025-11-11T04:37:41.483Z"
+    }
+  ]
+}

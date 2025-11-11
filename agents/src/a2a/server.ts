@@ -128,7 +128,10 @@ export function setupAgentA2A(
   // JSON-RPC endpoint
   app.post(`${agentPath}/`, async (req, res) => {
     try {
+      console.log(`\n🚨🚨🚨 CUSTOM A2A HANDLER CALLED FOR ${runtime.character.name} 🚨🚨🚨\n`);
+      console.log(`📨 A2A JSON-RPC Request for ${runtime.character.name}:`, JSON.stringify(req.body));
       const result = await jsonRpcHandler.handle(req.body);
+      console.log(`📤 A2A JSON-RPC Response:`, JSON.stringify(result).substring(0, 200));
 
       // Handle streaming responses
       if (Symbol.asyncIterator in Object(result)) {
@@ -171,41 +174,106 @@ export function setupMultiAgentA2A(
 ): void {
   console.log(`🚀 Setting up A2A for ${agents.length} agents`);
 
-  // Store initial stack length to identify newly added routes
-  const initialStackLength = app._router?.stack?.length || 0;
-  console.log(`📊 Initial router stack length: ${initialStackLength}`);
+  // Create agent map for quick lookup
+  const agentMap = new Map<string, { runtime: IAgentRuntime; roomId: UUID; handlers: any }>();
 
-  // First, setup all A2A routes normally
+  // Setup handlers for each agent
   for (const runtime of agents) {
-    // Create a room for A2A interactions
-    // In ElizaOS, roomId represents a conversation space
-    const roomId = runtime.agentId; // Use agent's own ID as room
+    const roomId = runtime.agentId;
+    const agentPath = `/agents/${runtime.agentId}/a2a`;
 
-    setupAgentA2A(app, runtime, roomId, '');
+    if (!process.env.A2A_PUBLIC_URL) {
+      throw new Error('A2A_PUBLIC_URL environment variable is required');
+    }
+    const baseUrl = process.env.A2A_PUBLIC_URL;
+
+    const agentCard = createAgentCard(runtime, baseUrl, agentPath);
+    const taskStore = new ElizaTaskStore(runtime, roomId);
+    const agentExecutor = new ElizaAgentExecutor(runtime, roomId);
+    const requestHandler = new DefaultRequestHandler(agentCard, taskStore, agentExecutor);
+    const jsonRpcHandler = new JsonRpcTransportHandler(requestHandler);
+
+    agentMap.set(runtime.agentId, {
+      runtime,
+      roomId,
+      handlers: { agentCard, jsonRpcHandler },
+    });
+
+    console.log(`✅ Prepared A2A handlers for ${runtime.character.name} at ${agentPath}`);
   }
 
-  // CRITICAL: Move newly added A2A routes to the FRONT of the middleware stack
-  // This ensures they are processed BEFORE the SPA fallback
-  if (app._router && app._router.stack) {
-    const stack = app._router.stack;
-    const newStackLength = stack.length;
-    console.log(`📊 New router stack length: ${newStackLength} (+${newStackLength - initialStackLength} routes)`);
+  // CRITICAL: Register A2A middleware BEFORE any other routes
+  // This intercepts ALL requests to /agents/*/a2a/** and processes them
+  app.use((req, res, next) => {
+    const path = req.path;
 
-    // Get the newly added layers (A2A routes)
-    const newLayers = stack.slice(initialStackLength);
-    const existingLayers = stack.slice(0, initialStackLength);
-
-    console.log(`📍 Found ${newLayers.length} newly added A2A routes`);
-    for (const layer of newLayers) {
-      if (layer.route && layer.route.path) {
-        console.log(`   - ${layer.route.methods ? Object.keys(layer.route.methods).join(',').toUpperCase() : '?'} ${layer.route.path}`);
-      }
+    // Check if this is an A2A request
+    const a2aMatch = path.match(/^\/agents\/([^\/]+)\/a2a(\/.*)?$/);
+    if (!a2aMatch) {
+      return next(); // Not an A2A request, pass to next handler
     }
 
-    // Rebuild stack with A2A routes FIRST, then existing routes (including SPA fallback)
-    app._router.stack = [...newLayers, ...existingLayers];
-    console.log(`✅ Moved ${newLayers.length} A2A routes to FRONT of ${stack.length} total layers`);
-  }
+    const agentId = a2aMatch[1];
+    const subpath = a2aMatch[2] || '/';
 
-  console.log(`✅ A2A setup complete for all agents`);
+    console.log(`🔍 A2A Middleware intercepted: ${req.method} ${path}`);
+
+    const agent = agentMap.get(agentId);
+    if (!agent) {
+      console.error(`❌ Agent not found: ${agentId}`);
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    // Handle Agent Card request
+    if (req.method === 'GET' && subpath === '/.well-known/agent-card.json') {
+      console.log(`📇 Agent Card requested for ${agent.runtime.character.name}`);
+      return res.json(agent.handlers.agentCard);
+    }
+
+    // Handle JSON-RPC request
+    if (req.method === 'POST' && subpath === '/') {
+      console.log(`\n🚨🚨🚨 A2A JSON-RPC REQUEST INTERCEPTED FOR ${agent.runtime.character.name} 🚨🚨🚨\n`);
+      console.log(`📨 Request body:`, JSON.stringify(req.body));
+
+      agent.handlers.jsonRpcHandler
+        .handle(req.body)
+        .then((result: any) => {
+          console.log(`📤 A2A Response:`, JSON.stringify(result).substring(0, 200));
+
+          if (Symbol.asyncIterator in Object(result)) {
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Transfer-Encoding', 'chunked');
+
+            (async () => {
+              for await (const chunk of result as AsyncGenerator) {
+                res.write(JSON.stringify(chunk) + '\n');
+              }
+              res.end();
+            })();
+          } else {
+            res.json(result);
+          }
+        })
+        .catch((error: any) => {
+          console.error(`❌ A2A Error:`, error);
+          res.status(500).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32603,
+              message: 'Internal error',
+              data: error.message,
+            },
+            id: req.body.id || null,
+          });
+        });
+
+      return; // Don't call next() - we've handled the request
+    }
+
+    // Unknown A2A subpath
+    console.error(`❌ Unknown A2A path: ${subpath}`);
+    return res.status(404).json({ error: 'Not found' });
+  });
+
+  console.log(`✅ A2A middleware registered for all ${agents.length} agents`);
 }

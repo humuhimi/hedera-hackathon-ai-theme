@@ -36,7 +36,7 @@ async function startServer() {
     console.log(`   - ${agent.character.name} (ID: ${agent.agentId})`);
   }
 
-  // Setup A2A Protocol endpoints
+  // Setup A2A Protocol endpoints with custom handlers
   console.log('🔗 Setting up A2A Protocol endpoints...');
   setupMultiAgentA2A(server.app, agents);
 
