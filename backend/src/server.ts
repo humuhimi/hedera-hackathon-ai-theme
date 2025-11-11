@@ -25,21 +25,25 @@ app.use(cors({
   credentials: true
 }));
 
-// A2A Protocol Proxy - Forward all /agents/*/a2a/** requests to ElizaOS server
-// CRITICAL: Must be BEFORE express.json() to avoid body parsing errors
-// CRITICAL: Use app.use without path to avoid path stripping
-const a2aFilter = (pathname: string): boolean => {
-  return pathname.startsWith('/agents/') && pathname.includes('/a2a');
-};
+// JSON body parser
+app.use(express.json());
 
-app.use(createProxyMiddleware({
+// Routes
+app.use('/auth', authRoutes);
+app.use('/agents', agentRoutes);
+
+// A2A Protocol Proxy - Forward /agents/*/a2a/** requests to ElizaOS server
+// IMPORTANT: Must be registered AFTER /agents routes to avoid conflicts
+app.use('/agents/:agentId/a2a', createProxyMiddleware({
   target: ELIZAOS_URL,
   changeOrigin: true,
-  // Only proxy requests matching /agents/*/a2a/**
-  filter: a2aFilter,
+  pathRewrite: (path, req) => {
+    // Reconstruct the full path including the agentId
+    const expressReq = req as Request;
+    return expressReq.originalUrl || path;
+  },
   on: {
     proxyReq: (proxyReq: ClientRequest, req: IncomingMessage): void => {
-      // Set Host header to match the target URL
       const targetUrl = new URL(ELIZAOS_URL);
       proxyReq.setHeader('Host', targetUrl.host);
       const expressReq = req as Request;
@@ -58,13 +62,6 @@ app.use(createProxyMiddleware({
     }
   }
 } as Parameters<typeof createProxyMiddleware>[0]));
-
-// JSON body parser - AFTER A2A proxy to avoid parsing A2A requests
-app.use(express.json());
-
-// Routes
-app.use('/auth', authRoutes);
-app.use('/agents', agentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
