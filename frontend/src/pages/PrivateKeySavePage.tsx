@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { PrivateKeySave } from '../components/PrivateKeySave'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -11,9 +12,14 @@ export function PrivateKeySavePage() {
     navigate('/')
   }
 
+  // Redirect to home if no private key to save
+  useEffect(() => {
+    if (!privateKey || !user?.did) {
+      navigate('/')
+    }
+  }, [privateKey, user?.did, navigate])
+
   if (!privateKey || !user?.did) {
-    // Redirect to home if no private key to save
-    navigate('/')
     return null
   }
 
