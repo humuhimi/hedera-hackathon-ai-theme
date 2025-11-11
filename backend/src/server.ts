@@ -1,10 +1,12 @@
 // Load environment variables FIRST before any other imports
 import 'dotenv/config';
 
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
+import { createProxyMiddleware, Filter } from 'http-proxy-middleware';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import type { IncomingMessage, ClientRequest, ServerResponse } from 'http';
 import authRoutes from './routes/auth.routes.js';
 import agentRoutes from './routes/agent.routes.js';
 import { verifyToken } from './services/jwt.service.js';
@@ -17,8 +19,45 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const ELIZAOS_URL = process.env.ELIZAOS_URL || 'http://localhost:3333';
 
 // Middleware
-app.use(cors({ origin: FRONTEND_URL }));
+// CORS: Allow frontend only
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true
+}));
 app.use(express.json());
+
+// A2A Protocol Proxy - Forward all /agents/*/a2a/** requests to ElizaOS server
+// CRITICAL: Use app.use without path to avoid path stripping
+const a2aFilter = (pathname: string): boolean => {
+  return pathname.startsWith('/agents/') && pathname.includes('/a2a');
+};
+
+app.use(createProxyMiddleware({
+  target: ELIZAOS_URL,
+  changeOrigin: true,
+  // Only proxy requests matching /agents/*/a2a/**
+  filter: a2aFilter,
+  on: {
+    proxyReq: (proxyReq: ClientRequest, req: IncomingMessage): void => {
+      // Set Host header to match the target URL
+      const targetUrl = new URL(ELIZAOS_URL);
+      proxyReq.setHeader('Host', targetUrl.host);
+      const expressReq = req as Request;
+      console.log(`🔄 Proxying A2A: ${req.method} ${expressReq.originalUrl} -> ${ELIZAOS_URL}${expressReq.originalUrl}`);
+    },
+    proxyRes: (proxyRes: IncomingMessage): void => {
+      console.log(`✅ A2A Response: ${proxyRes.statusCode}`);
+    },
+    error: (err: Error, _req: IncomingMessage, res: ServerResponse): void => {
+      console.error('❌ A2A Proxy Error:', err.message);
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Proxy failed' }));
+      }
+    }
+  }
+} as Parameters<typeof createProxyMiddleware>[0]));
 
 // Routes
 app.use('/auth', authRoutes);
@@ -60,8 +99,9 @@ io.use(async (socket, next) => {
     socket.data.userId = decoded.userId;
     socket.data.hederaAccountId = decoded.hederaAccountId;
     next();
-  } catch (error) {
-    console.error('❌ Authentication error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Authentication error:', errorMessage);
     next(new Error('Authentication error: Invalid token'));
   }
 });
@@ -92,8 +132,9 @@ io.on('connection', (socket) => {
       socket.emit('agent:joined', { agentId, channelId: agent.channelId });
 
       console.log(`📢 User ${socket.data.userId} joined channel ${agent.channelId} for agent ${agentId}`);
-    } catch (error) {
-      console.error('Error joining agent channel:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error joining agent channel:', errorMessage);
       socket.emit('error', { message: 'Failed to join agent channel' });
     }
   });
@@ -135,8 +176,9 @@ io.on('connection', (socket) => {
       });
 
       console.log(`✅ Agent ${agentId} responded:`, response.message.substring(0, 50) + '...');
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error sending message:', errorMessage);
       socket.emit('error', { message: 'Failed to send message' });
       // Remove "Thinking..." message on error
       socket.emit('agent:error', { error: 'Failed to get agent response' });
