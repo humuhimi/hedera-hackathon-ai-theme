@@ -1,0 +1,183 @@
+/**
+ * A2A Server Setup for ElizaOS
+ * Creates A2A endpoints for each agent
+ */
+
+import { AgentCard } from '@a2a-js/sdk';
+import { DefaultRequestHandler, JsonRpcTransportHandler } from '@a2a-js/sdk/server';
+import { ElizaTaskStore } from './task-store.js';
+import { ElizaAgentExecutor } from './executor.js';
+import type { IAgentRuntime, UUID } from '@elizaos/core';
+import type { Express } from 'express';
+
+/**
+ * Create Agent Card for an ElizaOS agent
+ */
+function createAgentCard(runtime: IAgentRuntime, baseUrl: string, agentPath: string): AgentCard {
+  const character = runtime.character;
+
+  return {
+    protocolVersion: '0.3.0',
+    name: character.name || 'ElizaOS Agent',
+    description: character.bio?.[0] || 'AI agent powered by ElizaOS and Hedera blockchain',
+    url: `${baseUrl}${agentPath}`,
+    version: '1.0.0',
+
+    // Capabilities
+    capabilities: {
+      streaming: true,
+      pushNotifications: false,
+      // TODO: Implement state transition history tracking to enable this capability.
+      // Currently only stores the latest task state, not the full history of transitions.
+      // When implementing:
+      // 1. Store each state change with timestamp in task history array
+      // 2. Modify ElizaTaskStore to append state changes instead of overwriting
+      // 3. Add TaskStatus with sequence numbers as per A2A v0.3.0 spec
+      // 4. Consider implementing pagination/indexing for efficient history retrieval
+      stateTransitionHistory: false,
+    },
+
+    // Input/Output modes
+    defaultInputModes: ['text/plain', 'application/json'],
+    defaultOutputModes: ['text/plain', 'application/json'],
+
+    // Skills based on character capabilities
+    skills: [
+      {
+        id: 'general-conversation',
+        name: 'General Conversation',
+        description: 'Engage in natural conversation and provide assistance',
+        tags: ['chat', 'conversation', 'assistance'],
+        examples: character.messageExamples?.map((ex) => {
+          const userMsg = ex.find((msg) => msg.name === 'user');
+          return userMsg?.content?.text || '';
+        }).filter(Boolean) || [
+          'Hello, how can you help me?',
+          'Tell me about yourself',
+        ],
+        inputModes: ['text/plain'],
+        outputModes: ['text/plain'],
+      },
+    ],
+
+    // TODO: Implement API key authentication when exposing A2A endpoints externally.
+    // For internal agent-to-agent communication, authentication is not required.
+    // When implementing for external access:
+    // 1. Add securitySchemes to Agent Card:
+    //    securitySchemes: {
+    //      apiKey: {
+    //        type: 'apiKey',
+    //        in: 'header',
+    //        name: 'X-API-Key',
+    //      },
+    //    },
+    // 2. Implement authentication middleware in A2AExpressApp or custom Express middleware
+    // 3. Generate and manage API keys per agent or per client organization
+    // 4. Add key validation and rate limiting per A2A Protocol v0.3.0 §4.4
+    // Note: Declaring securitySchemes without implementation violates A2A spec.
+
+    // Provider information
+    provider: {
+      organization: 'Jimo Market',
+      url: baseUrl,
+    },
+  };
+}
+
+// Global agent map for dynamic agent management
+const globalAgentMap = new Map<string, { runtime: IAgentRuntime; roomId: UUID; handlers: any }>();
+
+/**
+ * Initialize A2A middleware (call once at server startup)
+ * This registers the route handler but doesn't require any agents yet
+ */
+export function initializeA2AMiddleware(app: Express): void {
+  if (!process.env.A2A_PUBLIC_URL) {
+    throw new Error('A2A_PUBLIC_URL environment variable is required');
+  }
+
+  app.use((req, res, next) => {
+    const path = req.path;
+    const a2aMatch = path.match(/^\/agents\/([^\/]+)\/a2a(\/.*)?$/);
+
+    if (!a2aMatch) {
+      return next();
+    }
+
+    const agentId = a2aMatch[1];
+    const subpath = a2aMatch[2] || '/';
+    const agent = globalAgentMap.get(agentId);
+
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    if (req.method === 'GET' && subpath === '/.well-known/agent-card.json') {
+      return res.json(agent.handlers.agentCard);
+    }
+
+    if (req.method === 'POST' && subpath === '/') {
+      agent.handlers.jsonRpcHandler
+        .handle(req.body)
+        .then((result: any) => {
+
+          if (Symbol.asyncIterator in Object(result)) {
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Transfer-Encoding', 'chunked');
+
+            (async () => {
+              for await (const chunk of result as AsyncGenerator) {
+                res.write(JSON.stringify(chunk) + '\n');
+              }
+              res.end();
+            })();
+          } else {
+            res.json(result);
+          }
+        })
+        .catch((error: any) => {
+          res.status(500).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32603,
+              message: 'Internal error',
+              data: error.message,
+            },
+            id: req.body.id || null,
+          });
+        });
+
+      return;
+    }
+
+    return res.status(404).json({ error: 'Not found' });
+  });
+}
+
+/**
+ * Add an agent to A2A dynamically (called when agent is created)
+ */
+export function addAgentToA2A(runtime: IAgentRuntime): void {
+  const roomId = runtime.agentId;
+  const agentPath = `/agents/${runtime.agentId}/a2a`;
+  const baseUrl = process.env.A2A_PUBLIC_URL!;
+
+  const agentCard = createAgentCard(runtime, baseUrl, agentPath);
+  const taskStore = new ElizaTaskStore(runtime, roomId);
+  const agentExecutor = new ElizaAgentExecutor(runtime, roomId);
+  const requestHandler = new DefaultRequestHandler(agentCard, taskStore, agentExecutor);
+  const jsonRpcHandler = new JsonRpcTransportHandler(requestHandler);
+
+  globalAgentMap.set(runtime.agentId, {
+    runtime,
+    roomId,
+    handlers: { agentCard, jsonRpcHandler },
+  });
+}
+
+/**
+ * Remove an agent from A2A (called when agent is deleted)
+ */
+export function removeAgentFromA2A(agentId: UUID): void {
+  globalAgentMap.delete(agentId);
+}

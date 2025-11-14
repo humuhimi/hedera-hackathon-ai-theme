@@ -45,7 +45,77 @@ class AgentService {
       throw new Error('User does not have a DID. Please create a DID first.');
     }
 
-    // Step 1: Register agent on blockchain first (fail fast if this fails)
+    // Step 1: Create agent instance in ElizaOS (this generates the agentId)
+    console.log(`🔨 Creating ${type === 'give' ? 'Seller' : 'Buyer'} agent in ElizaOS...`);
+    const elizaResponse = await fetch(`${this.elizaOsUrl}/internal/agents/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type }),
+    });
+
+    if (!elizaResponse.ok) {
+      const errorText = await elizaResponse.text();
+      throw new Error(`Failed to create agent in ElizaOS: ${errorText}`);
+    }
+
+    const elizaData = await elizaResponse.json() as { agentId: string; name: string; type: string };
+    const elizaAgentId = elizaData.agentId;
+    console.log(`✅ ElizaOS agent created with ID: ${elizaAgentId}`);
+
+    // Step 2: Create channel for agent messaging
+    const channelPayload = {
+      id: elizaAgentId,
+      serverId: this.elizaOsServerId,
+      name: name,
+      type: 'direct',
+      participants: [userId, elizaAgentId]
+    };
+
+    const channelResponse = await fetch(`${this.elizaOsUrl}/api/messaging/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(channelPayload),
+    });
+
+    if (!channelResponse.ok) {
+      const errorText = await channelResponse.text();
+      throw new Error(`Failed to create channel: ${errorText}`);
+    }
+
+    const channelResult = await channelResponse.json() as { success: boolean; data: { channel: { id: string } } };
+    const actualChannelId = channelResult.data.channel.id;
+
+    // Add agent as participant to the channel
+    const addParticipantResponse = await fetch(
+      `${this.elizaOsUrl}/api/messaging/central-channels/${actualChannelId}/agents`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: elizaAgentId }),
+      }
+    );
+
+    if (!addParticipantResponse.ok) {
+      const errorText = await addParticipantResponse.text();
+      throw new Error(`Failed to add agent as participant: ${errorText}`);
+    }
+
+    // Add user as participant to the channel
+    const addUserResponse = await fetch(
+      `${this.elizaOsUrl}/api/messaging/central-channels/${actualChannelId}/agents`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: userId }),
+      }
+    );
+
+    if (!addUserResponse.ok) {
+      const errorText = await addUserResponse.text();
+      console.warn(`Failed to add user as participant: ${errorText}`);
+    }
+
+    // Step 3: Register agent on blockchain
     console.log(`🔗 Registering agent on blockchain...`);
     const registration = await erc8004Service.registerAgent(userId, {
       name: name,
@@ -54,7 +124,7 @@ class AgentService {
     });
     console.log(`✅ Agent registered on blockchain with ID: ${registration.agentId}`);
 
-    // Step 2: Create agent in database with blockchain info
+    // Step 4: Create agent in database with both ElizaOS and blockchain info
     const agent = await prisma.agent.create({
       data: {
         userId,
@@ -62,6 +132,7 @@ class AgentService {
         name,
         description,
         status: 'active',
+        channelId: actualChannelId, // Use actual channel ID from ElizaOS response
         erc8004AgentId: registration.agentId,
         blockchainTxId: registration.transactionId,
         tokenURI: registration.tokenURI,
@@ -69,91 +140,9 @@ class AgentService {
       },
     });
 
-    // Step 3: Create dedicated channel in ElizaOS for this agent (optional)
-    let channelId: string | null = null;
-    try {
-      // Step 3-1: Get ElizaOS agent ID dynamically by name
-      const agentName = type === 'give' ? 'SellerAgent' : 'BuyerAgent';
-      let elizaAgentId: string | null = null;
+    console.log(`✅ Agent ${agent.id} created (ElizaOS: ${elizaAgentId}, Blockchain: ${registration.agentId})`);
 
-      const agentsResponse = await fetch(`${this.elizaOsUrl}/api/agents`);
-      if (agentsResponse.ok) {
-        const agentsData = await agentsResponse.json() as { data?: { agents?: Array<{ id: string; name: string }> } };
-        const agents = agentsData.data?.agents || [];
-        const elizaAgent = agents.find((a) => a.name === agentName);
-
-        if (elizaAgent) {
-          elizaAgentId = elizaAgent.id;
-          console.log(`✅ Found ${agentName} with ID: ${elizaAgentId}`);
-        } else {
-          throw new Error(`${agentName} not found in ElizaOS. Available: ${agents.map((a) => a.name).join(', ')}`);
-        }
-      } else {
-        throw new Error('Failed to fetch ElizaOS agents');
-      }
-
-      // Step 3-2: Create channel
-      const channelResponse = await fetch(`${this.elizaOsUrl}/api/messaging/channels`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `Agent ${agent.id} Channel`,
-          serverId: this.elizaOsServerId,
-          type: 'text',
-        }),
-      });
-
-      if (!channelResponse.ok) {
-        throw new Error(`Failed to create channel: ${await channelResponse.text()}`);
-      }
-
-      const channelData = await channelResponse.json() as { data: { channel: { id: string } } };
-      channelId = channelData.data.channel.id;
-
-      // Step 3-3: Add ElizaOS agent to channel as participant
-      const addAgentResponse = await fetch(
-        `${this.elizaOsUrl}/api/messaging/central-channels/${channelId}/agents`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agentId: elizaAgentId }),
-        }
-      );
-
-      if (!addAgentResponse.ok) {
-        console.warn(`⚠️ Failed to add agent to channel: ${await addAgentResponse.text()}`);
-      } else {
-        console.log(`✅ Added ${agentName} (${elizaAgentId}) to channel ${channelId}`);
-      }
-
-      console.log(`✅ Created ElizaOS channel ${channelId} for agent ${agent.id}`);
-    } catch (error) {
-      console.warn(`⚠️ ElizaOS channel creation failed:`, error instanceof Error ? error.message : error);
-      // Channel creation failed, but agent is still created
-    }
-
-    // Step 4: Update agent with channelId if channel was created successfully
-    if (channelId) {
-      try {
-        await prisma.agent.update({
-          where: { id: agent.id },
-          data: { channelId },
-        });
-        console.log(`✅ Saved channelId to database`);
-      } catch (error) {
-        console.error(`❌ Failed to save channelId to database:`, error instanceof Error ? error.message : error);
-        // Channel was created but couldn't save to DB - this is logged but not critical
-      }
-    }
-
-    console.log(`✅ Agent ${agent.id} created (${type})`);
-
-    // Fetch the latest agent data (with blockchain info if registered)
-    const updatedAgent = await prisma.agent.findUnique({
-      where: { id: agent.id },
-    });
-
-    return { ...updatedAgent, channelId };
+    return agent;
   }
 
   /**
@@ -182,23 +171,26 @@ class AgentService {
 
     // Send message to ElizaOS via messaging API
     try {
+      const messagePayload = {
+        channel_id: agent.channelId,
+        server_id: this.elizaOsServerId,
+        author_id: userId,
+        content: message,
+        source_type: 'api',
+        raw_message: {
+          text: message,
+          agentId: agentId,
+          userId: userId,
+        },
+      };
+      console.log(`📤 Message submission payload:`, JSON.stringify(messagePayload, null, 2));
+
       const submitResponse = await fetch(`${this.elizaOsUrl}/api/messaging/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          channel_id: agent.channelId,
-          server_id: this.elizaOsServerId,
-          author_id: userId,
-          content: message,
-          source_type: 'api',
-          raw_message: {
-            text: message,
-            agentId: agentId,
-            userId: userId,
-          },
-        }),
+        body: JSON.stringify(messagePayload),
       });
 
       if (!submitResponse.ok) {
