@@ -23,17 +23,12 @@ export class ElizaAgentExecutor implements AgentExecutor {
    */
   async execute(ctx: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
     try {
-      console.log(`🤖 ElizaAgent executing for task: ${ctx.taskId}`);
-
-      // Extract user message
       const textPart = ctx.userMessage.parts.find((p) => p.kind === 'text') as
         | { kind: 'text'; text: string }
         | undefined;
       const userMessage = textPart?.text || '';
 
-      // Get API key from runtime settings
       const apiKey = this.runtime.getSetting('OPENAI_API_KEY') || process.env.OPENAI_API_KEY;
-
       if (!apiKey) {
         throw new Error('OPENAI_API_KEY not found in runtime settings or environment');
       }
@@ -56,7 +51,6 @@ export class ElizaAgentExecutor implements AgentExecutor {
 
       const responseContent = completion.choices[0]?.message?.content || 'I apologize, but I was unable to generate a response.';
 
-      // Send response back through A2A
       const responseMessage: Message = {
         kind: 'message',
         messageId: uuidv4(),

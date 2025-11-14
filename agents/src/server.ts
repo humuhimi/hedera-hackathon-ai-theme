@@ -90,7 +90,7 @@ async function startServer() {
     }
   });
 
-  // Initialize A2A middleware (routes registered, but no agents yet)
+  // Initialize A2A middleware
   initializeA2AMiddleware(server.app);
 
   console.log('✅ Server ready (0 agents - will be created via API)');

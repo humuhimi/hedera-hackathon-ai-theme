@@ -62,7 +62,60 @@ class AgentService {
     const elizaAgentId = elizaData.agentId;
     console.log(`✅ ElizaOS agent created with ID: ${elizaAgentId}`);
 
-    // Step 2: Register agent on blockchain
+    // Step 2: Create channel for agent messaging
+    const channelPayload = {
+      id: elizaAgentId,
+      serverId: this.elizaOsServerId,
+      name: name,
+      type: 'direct',
+      participants: [userId, elizaAgentId]
+    };
+
+    const channelResponse = await fetch(`${this.elizaOsUrl}/api/messaging/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(channelPayload),
+    });
+
+    if (!channelResponse.ok) {
+      const errorText = await channelResponse.text();
+      throw new Error(`Failed to create channel: ${errorText}`);
+    }
+
+    const channelResult = await channelResponse.json() as { success: boolean; data: { channel: { id: string } } };
+    const actualChannelId = channelResult.data.channel.id;
+
+    // Add agent as participant to the channel
+    const addParticipantResponse = await fetch(
+      `${this.elizaOsUrl}/api/messaging/central-channels/${actualChannelId}/agents`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: elizaAgentId }),
+      }
+    );
+
+    if (!addParticipantResponse.ok) {
+      const errorText = await addParticipantResponse.text();
+      throw new Error(`Failed to add agent as participant: ${errorText}`);
+    }
+
+    // Add user as participant to the channel
+    const addUserResponse = await fetch(
+      `${this.elizaOsUrl}/api/messaging/central-channels/${actualChannelId}/agents`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId: userId }),
+      }
+    );
+
+    if (!addUserResponse.ok) {
+      const errorText = await addUserResponse.text();
+      console.warn(`Failed to add user as participant: ${errorText}`);
+    }
+
+    // Step 3: Register agent on blockchain
     console.log(`🔗 Registering agent on blockchain...`);
     const registration = await erc8004Service.registerAgent(userId, {
       name: name,
@@ -71,7 +124,7 @@ class AgentService {
     });
     console.log(`✅ Agent registered on blockchain with ID: ${registration.agentId}`);
 
-    // Step 3: Create agent in database with both ElizaOS and blockchain info
+    // Step 4: Create agent in database with both ElizaOS and blockchain info
     const agent = await prisma.agent.create({
       data: {
         userId,
@@ -79,7 +132,7 @@ class AgentService {
         name,
         description,
         status: 'active',
-        channelId: elizaAgentId, // ElizaOS agentId stored as channelId
+        channelId: actualChannelId, // Use actual channel ID from ElizaOS response
         erc8004AgentId: registration.agentId,
         blockchainTxId: registration.transactionId,
         tokenURI: registration.tokenURI,
@@ -118,23 +171,26 @@ class AgentService {
 
     // Send message to ElizaOS via messaging API
     try {
+      const messagePayload = {
+        channel_id: agent.channelId,
+        server_id: this.elizaOsServerId,
+        author_id: userId,
+        content: message,
+        source_type: 'api',
+        raw_message: {
+          text: message,
+          agentId: agentId,
+          userId: userId,
+        },
+      };
+      console.log(`📤 Message submission payload:`, JSON.stringify(messagePayload, null, 2));
+
       const submitResponse = await fetch(`${this.elizaOsUrl}/api/messaging/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          channel_id: agent.channelId,
-          server_id: this.elizaOsServerId,
-          author_id: userId,
-          content: message,
-          source_type: 'api',
-          raw_message: {
-            text: message,
-            agentId: agentId,
-            userId: userId,
-          },
-        }),
+        body: JSON.stringify(messagePayload),
       });
 
       if (!submitResponse.ok) {

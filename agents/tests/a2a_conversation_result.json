@@ -1,6 +1,6 @@
 {
   "test": "A2A Conversation Test",
-  "timestamp": "2025-11-11T14:16:54.251Z",
+  "timestamp": "2025-11-14T04:02:03.045Z",
   "agents": {
     "seller": {
       "id": "f94b12ef-5fcd-0811-a35b-7b19aa7b22c3",
@@ -24,63 +24,63 @@
       "receiver": "SellerAgent",
       "text": "Hello! I have some questions about your products. What kind of items do you sell?",
       "messageId": "msg-initial-0",
-      "timestamp": "2025-11-11T14:16:30.019Z"
+      "timestamp": "2025-11-14T04:01:40.065Z"
     },
     {
       "sender": "SellerAgent",
       "receiver": "BuyerAgent",
-      "text": "Hello! I specialize in listing a variety of items for sale, including furniture, electronics, clothing, and more. If you have something specific in mind or if you're looking for a particular category, feel free to ask! I'm here to help.",
-      "messageId": "5723bd98-ecce-4ec7-9f53-403e35e0d5c6",
-      "timestamp": "2025-11-11T14:16:32.532Z"
+      "text": "Hello! I'm glad you reached out. I specialize in selling a variety of items, including furniture, electronics, clothing, and more. If there's something specific you're interested in or if you'd like to know more about a particular category, feel free to ask! I'm here to help.",
+      "messageId": "fcab4c76-6097-4113-8aee-a82f9ed4d0d9",
+      "timestamp": "2025-11-14T04:01:42.340Z"
     },
     {
       "sender": "BuyerAgent",
       "receiver": "SellerAgent",
-      "text": "Hello! I appreciate your willingness to assist, but I’m here to buy items, not to list them for sale. If you have any items that I could potentially purchase, please let me know! I'm looking for specific furniture and electronics at the moment. Thank you!",
-      "messageId": "5872cf7e-5b45-4b1b-a2e0-afacc4ac6f41",
-      "timestamp": "2025-11-11T14:16:35.237Z"
+      "text": "Thank you for your response! However, I am actually looking to buy items rather than sell. If you have any listings or if you know of specific items available in furniture, electronics, or clothing, please let me know. I'm eager to find something specific!",
+      "messageId": "e1a71e4d-27f6-4c8d-aede-eec753af84f4",
+      "timestamp": "2025-11-14T04:01:45.042Z"
     },
     {
       "sender": "SellerAgent",
       "receiver": "BuyerAgent",
-      "text": "Hello! I appreciate your interest, but I specialize in listing and selling items rather than buying them. If you're looking for specific furniture or electronics, feel free to let me know your requirements, and I can help other sellers list relevant items! If you have any items you'd like to sell, I'm here to assist with that. Thank you!",
-      "messageId": "8fb45d0d-cbb2-4a07-be1d-e2b0d3837d1d",
-      "timestamp": "2025-11-11T14:16:38.813Z"
+      "text": "I appreciate your interest! However, I'm here to assist you with selling items rather than buying them. If you have any items you'd like to list for sale or if you need help with anything related to selling, feel free to let me know! Otherwise, I recommend checking the marketplace for listings that match your interests in furniture, electronics, or clothing.",
+      "messageId": "7e0c91b5-2d8d-46f5-bc4d-8e0ad6653da3",
+      "timestamp": "2025-11-14T04:01:48.452Z"
     },
     {
       "sender": "BuyerAgent",
       "receiver": "SellerAgent",
-      "text": "Thank you for your response! However, I am specifically here to assist buyers in finding and purchasing items. If you have any listings or know about any furniture or electronics available for sale, please let me know. I would be happy to inquire about those items or negotiate a potential purchase. Thank you!",
-      "messageId": "3be71e75-0c16-4a4a-965a-63163d7fab21",
-      "timestamp": "2025-11-11T14:16:41.883Z"
+      "text": "Thank you for the information! I'm here to assist you in finding items to buy. If you have specific items in mind that you'd like to search for—whether it's furniture, electronics, or clothing—please let me know your criteria, and I can help you find suitable listings on the marketplace!",
+      "messageId": "d908a867-60ba-4d88-9d07-6bbafdbe707b",
+      "timestamp": "2025-11-14T04:01:51.002Z"
     },
     {
       "sender": "SellerAgent",
       "receiver": "BuyerAgent",
-      "text": "I understand that you're looking for items to purchase, but as a seller agent, I'm here to assist with listing and selling items. If you have any specific items you'd like to know more about, feel free to ask me for more details on my current listings, and I'll be happy to provide you with that information!",
-      "messageId": "ddee0971-a0e5-4aa8-a7be-13e2d6ac7ada",
-      "timestamp": "2025-11-11T14:16:45.513Z"
+      "text": "Thank you for the offer! However, I'm here to sell items, not to buy. If you have any items you'd like to sell or if you have inquiries about items you see listed, feel free to let me know! I'm ready to assist with listings or answer any questions you may have.",
+      "messageId": "b4239e93-e4cb-440b-9475-dc94dbddcedb",
+      "timestamp": "2025-11-14T04:01:54.016Z"
     },
     {
       "sender": "BuyerAgent",
       "receiver": "SellerAgent",
-      "text": "Thank you for your response! However, I'm actually here to help find items to buy rather than sell. If you have specific categories or types of items you would like me to look for, please let me know, and I'll start searching for them.",
-      "messageId": "234ca570-f0ec-46dc-b523-e0610bf556fd",
-      "timestamp": "2025-11-11T14:16:48.448Z"
+      "text": "I appreciate your response! However, I specialize in buying items rather than selling. If you have items listed on the marketplace or if there's a specific item I could inquire about, please let me know. I'm here to assist with purchasing items and making inquiries as needed. Thank you!",
+      "messageId": "d308f218-4810-41df-a4f2-ece9f92118b4",
+      "timestamp": "2025-11-14T04:01:56.837Z"
     },
     {
       "sender": "SellerAgent",
       "receiver": "BuyerAgent",
-      "text": "I appreciate your offer to help, but I'm here specifically to sell items. If you have any items you'd like to sell or list, please let me know! I'm happy to assist you with that.",
-      "messageId": "909d7efe-3be0-4074-8761-d873f271312c",
-      "timestamp": "2025-11-11T14:16:50.891Z"
+      "text": "Thank you for reaching out! However, I'm here to assist with selling items rather than buying. If you have any items you’d like to sell or list, feel free to let me know! I can help you create listings with descriptions and photos. Just provide the details of the items you're looking to sell!",
+      "messageId": "20bdd6b2-16b7-44fe-a71d-f332f3641faa",
+      "timestamp": "2025-11-14T04:01:59.584Z"
     },
     {
       "sender": "BuyerAgent",
       "receiver": "SellerAgent",
-      "text": "I appreciate your response! However, I am here to assist you in finding and purchasing items rather than selling. If you have any specific items you’re looking for, please let me know and I can help find suitable options!",
-      "messageId": "967dcf45-4aeb-46bd-bb20-88b978ba6c17",
-      "timestamp": "2025-11-11T14:16:53.247Z"
+      "text": "Thank you for your offer, but I am specifically here to help you find and purchase items. If you have something you'd like to buy, please let me know your requirements, such as the category, price range, and location, and I can assist you in searching for suitable items!",
+      "messageId": "4263c3f0-c131-4d46-b1c2-2f345fc5891b",
+      "timestamp": "2025-11-14T04:02:02.044Z"
     }
   ]
 }

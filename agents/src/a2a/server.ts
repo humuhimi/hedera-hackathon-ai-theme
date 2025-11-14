@@ -96,45 +96,30 @@ export function initializeA2AMiddleware(app: Express): void {
     throw new Error('A2A_PUBLIC_URL environment variable is required');
   }
 
-  console.log('🔗 Initializing A2A middleware (dynamic agent support)...');
-
-  // CRITICAL: Register A2A middleware BEFORE any other routes
-  // This intercepts ALL requests to /agents/*/a2a/** and processes them
   app.use((req, res, next) => {
     const path = req.path;
-
-    // Check if this is an A2A request
     const a2aMatch = path.match(/^\/agents\/([^\/]+)\/a2a(\/.*)?$/);
+
     if (!a2aMatch) {
-      return next(); // Not an A2A request, pass to next handler
+      return next();
     }
 
     const agentId = a2aMatch[1];
     const subpath = a2aMatch[2] || '/';
-
-    console.log(`🔍 A2A Middleware intercepted: ${req.method} ${path}`);
-
     const agent = globalAgentMap.get(agentId);
+
     if (!agent) {
-      console.error(`❌ Agent not found: ${agentId}`);
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Handle Agent Card request
     if (req.method === 'GET' && subpath === '/.well-known/agent-card.json') {
-      console.log(`📇 Agent Card requested for ${agent.runtime.character.name}`);
       return res.json(agent.handlers.agentCard);
     }
 
-    // Handle JSON-RPC request
     if (req.method === 'POST' && subpath === '/') {
-      console.log(`\n🚨🚨🚨 A2A JSON-RPC REQUEST INTERCEPTED FOR ${agent.runtime.character.name} 🚨🚨🚨\n`);
-      console.log(`📨 Request body:`, JSON.stringify(req.body));
-
       agent.handlers.jsonRpcHandler
         .handle(req.body)
         .then((result: any) => {
-          console.log(`📤 A2A Response:`, JSON.stringify(result).substring(0, 200));
 
           if (Symbol.asyncIterator in Object(result)) {
             res.setHeader('Content-Type', 'application/json');
@@ -151,7 +136,6 @@ export function initializeA2AMiddleware(app: Express): void {
           }
         })
         .catch((error: any) => {
-          console.error(`❌ A2A Error:`, error);
           res.status(500).json({
             jsonrpc: '2.0',
             error: {
@@ -163,15 +147,11 @@ export function initializeA2AMiddleware(app: Express): void {
           });
         });
 
-      return; // Don't call next() - we've handled the request
+      return;
     }
 
-    // Unknown A2A subpath
-    console.error(`❌ Unknown A2A path: ${subpath}`);
     return res.status(404).json({ error: 'Not found' });
   });
-
-  console.log(`✅ A2A middleware initialized (ready for dynamic agents)`);
 }
 
 /**
@@ -193,19 +173,11 @@ export function addAgentToA2A(runtime: IAgentRuntime): void {
     roomId,
     handlers: { agentCard, jsonRpcHandler },
   });
-
-  console.log(`✅ Added ${runtime.character.name} to A2A (ID: ${runtime.agentId})`);
-  console.log(`   Agent Card: GET ${agentPath}/.well-known/agent-card.json`);
-  console.log(`   JSON-RPC: POST ${agentPath}/`);
 }
 
 /**
  * Remove an agent from A2A (called when agent is deleted)
  */
 export function removeAgentFromA2A(agentId: UUID): void {
-  const agent = globalAgentMap.get(agentId);
-  if (agent) {
-    globalAgentMap.delete(agentId);
-    console.log(`🗑️ Removed ${agent.runtime.character.name} from A2A (ID: ${agentId})`);
-  }
+  globalAgentMap.delete(agentId);
 }
