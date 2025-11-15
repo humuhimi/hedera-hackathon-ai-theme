@@ -81,7 +81,7 @@ async function main() {
     // Convert to HBAR units (1 HBAR = 100,000,000 tinybar)
     const transactionFeeInTinybar = Number(transactionFee.toTinybars());
     const transactionFeeInHbar = transactionFeeInTinybar / 100_000_000;
-    const gasUsedNumber = typeof gasUsed === 'bigint' ? Number(gasUsed) : (typeof gasUsed === 'object' && 'toNumber' in gasUsed ? (gasUsed as any).toNumber() : Number(gasUsed));
+    const gasUsedNumber = convertGasUsedToNumber(gasUsed);
 
     console.log("\n✅ Deployment successful!");
     console.log(`📄 Contract ID: ${contractId?.toString()}`);
