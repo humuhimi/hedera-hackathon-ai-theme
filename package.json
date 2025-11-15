@@ -10,14 +10,23 @@
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:db": "cd backend && npx prisma studio",
-    "deploy:erc8004": "npx tsx scripts/deploy-erc8004.ts"
+    "test": "hardhat test",
+    "compile": "hardhat compile",
+    "clean": "hardhat clean",
+    "deploy:erc8004": "npx tsx scripts/deploy-erc8004.ts",
+    "deploy:marketplace": "npx tsx deploy-marketplace.ts"
   },
   "devDependencies": {
-    "@hashgraph/sdk": "^2.45.0",
-    "@types/node": "^20.10.0",
+    "@hashgraph/did-sdk-js": "^0.1.1",
+    "@hashgraph/sdk": "^2.72.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@openzeppelin/contracts": "^5.4.0",
+    "@types/node": "^24.9.1",
     "concurrently": "^8.2.2",
-    "dotenv": "^16.3.1",
-    "tsx": "^4.7.2",
-    "typescript": "^5.2.2"
+    "dotenv": "^17.2.3",
+    "hardhat": "^2.22.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   }
 }

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node", "@nomicfoundation/hardhat-ethers", "@nomicfoundation/hardhat-chai-matchers"]
+  },
+  "include": ["test/**/*", "scripts/**/*", "hardhat.config.ts", "deploy-marketplace.ts"],
+  "exclude": ["node_modules", "dist"]
+}
