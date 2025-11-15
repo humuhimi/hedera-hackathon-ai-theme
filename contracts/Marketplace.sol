@@ -107,6 +107,8 @@ contract Marketplace {
     // Finalized inquiry ID per listing
     mapping(uint256 => uint256) public listingReservation;
 
+    // TODO: Add HBAR escrow system (mapping escrowBalance, deposit/refund logic)
+
     // ===== Events =====
 
     /**
@@ -302,6 +304,7 @@ contract Marketplace {
      *      AP2-aligned: Buyer submits CLAIMS, not verified attributes.
      *      Seller will verify off-chain independently (see selectReservation).
      */
+    // TODO: Make payable, deposit msg.value to escrow, verify amount matches offerPrice
     function createInquiry(
         uint256 buyerAgentId,
         uint256 listingId,
@@ -310,7 +313,7 @@ contract Marketplace {
         bytes32 mandateVcHash,
         bytes32 claimedAttributesHash,
         bytes32 claimedCapabilitiesHash
-    ) external onlyAgentOwner(buyerAgentId) returns (uint256) {
+    ) external /* payable */ onlyAgentOwner(buyerAgentId) returns (uint256) {
         require(listings[listingId].listingId != 0, "Listing does not exist");
         require(listings[listingId].status == ListingStatus.OPEN, "Listing not open");
         require(buyerAgentId != listings[listingId].sellerAgentId, "Seller cannot inquire own listing");
@@ -417,6 +420,8 @@ contract Marketplace {
 
         uint256 inquiryId = listingReservation[listingId];
 
+        // TODO: Transfer escrowed HBAR to seller (clear escrow first for reentrancy protection)
+
         // Transition to completed state
         listings[listingId].status = ListingStatus.COMPLETED;
 
@@ -445,6 +450,7 @@ contract Marketplace {
         uint256 inquiryId = 0;
         if (listings[listingId].status == ListingStatus.RESERVED) {
             inquiryId = listingReservation[listingId];
+            // TODO: Refund escrowed HBAR to buyer if exists
         }
 
         // Transition to cancelled state
@@ -475,6 +481,8 @@ contract Marketplace {
 
         uint256 reservedInquiryId = listingReservation[listingId];
         require(reservedInquiryId != 0, "No reservation");
+
+        // TODO: Refund escrowed HBAR to buyer if exists
 
         // Return to OPEN state
         listings[listingId].status = ListingStatus.OPEN;
