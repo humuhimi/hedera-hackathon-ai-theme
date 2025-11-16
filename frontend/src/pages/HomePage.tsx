@@ -5,7 +5,7 @@ import { AgentList } from '../components/home/AgentList'
 import { useAgents } from '../hooks/useAgents'
 
 export function HomePage() {
-  const { agents, isCreatingAgent, createAgent } = useAgents()
+  const { agents, isCreatingAgent, creatingType, createAgent } = useAgents()
   const hasAgents = agents.length > 0
 
   return (
@@ -19,12 +19,12 @@ export function HomePage() {
             <AgentTypeCard
               type="give"
               onCreateAgent={() => createAgent('give')}
-              isLoading={isCreatingAgent}
+              isLoading={creatingType === 'give'}
             />
             <AgentTypeCard
               type="want"
               onCreateAgent={() => createAgent('want')}
-              isLoading={isCreatingAgent}
+              isLoading={creatingType === 'want'}
             />
           </div>
 

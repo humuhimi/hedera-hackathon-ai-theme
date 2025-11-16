@@ -8,7 +8,8 @@ export function useAgents() {
   const { isAuthenticated, user } = useAuth()
   const [agents, setAgents] = useState<Agent[]>([])
   const [isLoadingAgents, setIsLoadingAgents] = useState(false)
-  const [isCreatingAgent, setIsCreatingAgent] = useState(false)
+  // Track which type is being created: 'give' | 'want' | null
+  const [creatingType, setCreatingType] = useState<AgentType | null>(null)
 
   const loadAgents = useCallback(async () => {
     try {
@@ -36,7 +37,7 @@ export function useAgents() {
 
   const createAgent = useCallback(async (type: AgentType) => {
     try {
-      setIsCreatingAgent(true)
+      setCreatingType(type)
       const session = sessionManager.get()
       if (!session?.token) {
         alert('Authentication token is missing. Please log in again.')
@@ -59,14 +60,16 @@ export function useAgents() {
       console.error('Failed to create agent:', error)
       alert('Failed to create agent.')
     } finally {
-      setIsCreatingAgent(false)
+      setCreatingType(null)
     }
   }, [loadAgents])
 
   return {
     agents,
     isLoadingAgents,
-    isCreatingAgent,
+    // Keep boolean for existing consumers
+    isCreatingAgent: creatingType !== null,
+    creatingType,
     createAgent,
     loadAgents
   }
