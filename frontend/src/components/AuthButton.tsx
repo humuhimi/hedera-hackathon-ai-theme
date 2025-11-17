@@ -87,13 +87,13 @@ export const AuthButton = () => {
         ) : (
           <>
             <span className="text-xl">🔗</span>
-            <span>Get Started with HashPack</span>
+            <span>Connect with HashPack</span>
           </>
         )}
       </button>
 
-      <p className="text-sm text-gray-600">
-        * No email or password required
+      <p className="text-sm text-gray-600 text-center">
+        This application supports <span className="font-semibold">HashPack</span> wallet only.
       </p>
 
       {statusMessage && (
