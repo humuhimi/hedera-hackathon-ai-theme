@@ -117,6 +117,18 @@ export class WalletConnector {
         this.session = sessions[0];
       }
 
+      // Enforce HashPack-only if enabled
+      const enforceHashPackOnly = import.meta.env.VITE_HASHPACK_ONLY === 'true';
+      const walletName = this.session?.peer?.metadata?.name || 'Unknown Wallet';
+      if (enforceHashPackOnly && walletName.toLowerCase() !== 'hashpack') {
+        // Proactively disconnect non-HashPack sessions
+        try {
+          await this.dAppConnector.disconnectAll();
+        } catch {}
+        this.session = null;
+        throw new Error('This application supports HashPack wallet only. Please connect using HashPack.');
+      }
+
       // Extract account ID from session
       const accountId = this.getAccountIdFromSession();
 
