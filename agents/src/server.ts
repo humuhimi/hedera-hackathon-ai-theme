@@ -14,6 +14,13 @@ if (typeof global.CustomEvent === 'undefined') {
   } as any;
 }
 
+import path from 'path';
+import dotenv from 'dotenv';
+
+// Prefer root .env; also fallback to local .env if root is missing
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config();
+
 import { AgentServer } from '@elizaos/server';
 import type { UUID } from '@elizaos/core';
 import { sellerCharacter, buyerCharacter } from './index.js';

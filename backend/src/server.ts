@@ -1,5 +1,10 @@
 // Load environment variables FIRST before any other imports
-import 'dotenv/config';
+import path from 'path';
+import dotenv from 'dotenv';
+
+// Prefer root .env; also fallback to local .env if root is missing
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config();
 
 import express, { Request } from 'express';
 import cors from 'cors';

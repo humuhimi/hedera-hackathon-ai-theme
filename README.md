@@ -111,8 +111,9 @@ npm run dev
 
 This starts all services:
 - Agents: http://localhost:3333
-- Backend: http://localhost:5001
-- Frontend: http://localhost:5173
+- Backend: http://localhost:4000
+- Frontend: http://localhost:3000
+- Agents (ElizaOS): http://localhost:3333
 - Prisma Studio: http://localhost:5555
 
 ## Deploy ERC-8004 Contracts
@@ -120,6 +121,37 @@ This starts all services:
 ```bash
 npm run deploy:erc8004
 ```
+
+## Environment Configuration (single root .env)
+
+- All services read from a single `.env` at the repository root.
+- Frontend only exposes variables prefixed with `VITE_`.
+
+Copy `.env.example` to `.env` in the repo root and fill values:
+
+- Backend
+  - `PORT=4000`
+  - `FRONTEND_URL=http://localhost:3000`
+  - `ELIZAOS_URL=http://localhost:3333`
+  - `HEDERA_NETWORK=testnet`
+  - `DISABLE_DID_REG=true` (dev)
+  - `DISABLE_CHAIN_REG=true` (dev)
+  - `HEDERA_MANAGER_ACCOUNT_ID=...`
+  - `HEDERA_MANAGER_PRIVATE_KEY=...`
+  - `PINATA_JWT=...`
+- Agents (ElizaOS)
+  - `SERVER_PORT=3333`
+  - `OPENAI_API_KEY=...`
+  - `OPENAI_SMALL_MODEL=gpt-4o-mini`
+  - `OPENAI_LARGE_MODEL=gpt-4o-mini`
+  - `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
+- Frontend (Vite)
+  - `VITE_API_URL=http://localhost:4000`
+  - `VITE_HEDERA_NETWORK=testnet`
+  - `VITE_WALLETCONNECT_PROJECT_ID=...`
+  - `VITE_HASHPACK_ONLY=true`
+
+Restart all services after changes to ensure env is loaded.
 
 ## Available Scripts
 
