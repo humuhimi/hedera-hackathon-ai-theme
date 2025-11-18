@@ -229,8 +229,11 @@ class AgentService {
         throw new Error(`ElizaOS responded with status ${submitResponse.status}`);
       }
 
-      const submitResult = await submitResponse.json() as { data?: { message?: { id: string } } };
-      const userMessageId = submitResult.data?.message?.id;
+      const submitResult = await submitResponse.json() as { data?: { id: string; message?: { id: string } } };
+      console.log(`📥 ElizaOS submit response:`, JSON.stringify(submitResult, null, 2));
+      // ElizaOS returns id directly in data, not nested in message
+      const userMessageId = submitResult.data?.id || submitResult.data?.message?.id;
+      console.log(`🔑 Extracted userMessageId: ${userMessageId}`);
 
       // Wait for agent response (poll for new messages)
       const agentResponse = await this.waitForAgentResponse(agent.channelId, userMessageId);
@@ -262,7 +265,10 @@ class AgentService {
    * TODO: Replace HTTP polling with WebSocket/Socket.IO for real-time agent responses
    */
   private async waitForAgentResponse(channelId: string, afterMessageId?: string): Promise<string | null> {
-    let foundUserMessage = false;
+    const collectedResponses: Array<{ id: string; content: string; createdAt: string }> = [];
+    const seenMessageIds = new Set<string>();
+    let firstResponseTime = 0;
+    const ADDITIONAL_WAIT_MS = 3000; // Wait 3 seconds after first response for additional messages
 
     console.log(`⏳ Waiting for agent response in channel ${channelId}, after message ${afterMessageId}`);
 
@@ -293,30 +299,75 @@ class AgentService {
 
           console.log(`📋 Polling attempt ${attempt + 1}/${CONFIG.POLL_MAX_ATTEMPTS}, found ${messages.length} messages`);
 
-          // Find our user message first to mark the position
+          // Find user message timestamp
+          const userMessage = messages.find(msg => msg.id === afterMessageId);
+          const userMessageTime = userMessage ? new Date(userMessage.createdAt).getTime() : 0;
+
+          if (userMessage) {
+            console.log(`✅ Found user message: ${afterMessageId}`);
+          }
+
+          // Find agent responses that came after our user message (by timestamp)
           for (const msg of messages) {
-            if (afterMessageId && msg.id === afterMessageId) {
-              foundUserMessage = true;
-              console.log(`✅ Found user message: ${afterMessageId}`);
-            }
-            
-            // Find agent response that came after our user message
-            if (foundUserMessage && msg.sourceType === 'agent_response' && msg.id !== afterMessageId) {
-              console.log(`✅ Found agent response: ${msg.id}, content: ${msg.content?.substring(0, 50)}`);
-              return msg.content || msg.rawMessage?.text || null;
+            if (msg.sourceType === 'agent_response' && !seenMessageIds.has(msg.id)) {
+              const msgTime = new Date(msg.createdAt).getTime();
+
+              // Only include responses newer than user message
+              if (afterMessageId && userMessageTime > 0 && msgTime <= userMessageTime) {
+                continue;
+              }
+
+              const content = msg.content || msg.rawMessage?.text;
+              if (content) {
+                console.log(`✅ Found agent response: ${msg.id}, content: ${content.substring(0, 50)}...`);
+                collectedResponses.push({
+                  id: msg.id,
+                  content,
+                  createdAt: msg.createdAt
+                });
+                seenMessageIds.add(msg.id);
+                if (firstResponseTime === 0) {
+                  firstResponseTime = Date.now();
+                }
+              }
             }
           }
 
           // If we didn't find afterMessageId, look for any recent agent_response
           if (!afterMessageId) {
             for (const msg of messages) {
-              if (msg.sourceType === 'agent_response') {
+              if (msg.sourceType === 'agent_response' && !seenMessageIds.has(msg.id)) {
                 const messageAge = Date.now() - new Date(msg.createdAt).getTime();
                 if (messageAge < CONFIG.RECENT_MESSAGE_THRESHOLD_MS) {
-                  console.log(`✅ Found recent agent response: ${msg.id}`);
-                  return msg.content || msg.rawMessage?.text || null;
+                  const content = msg.content || msg.rawMessage?.text;
+                  if (content) {
+                    console.log(`✅ Found recent agent response: ${msg.id}`);
+                    collectedResponses.push({
+                      id: msg.id,
+                      content,
+                      createdAt: msg.createdAt
+                    });
+                    seenMessageIds.add(msg.id);
+                    if (firstResponseTime === 0) {
+                      firstResponseTime = Date.now();
+                    }
+                  }
                 }
               }
+            }
+          }
+
+          // If we have responses, wait a bit more for additional messages
+          if (collectedResponses.length > 0 && firstResponseTime > 0) {
+            const timeSinceFirstResponse = Date.now() - firstResponseTime;
+            if (timeSinceFirstResponse >= ADDITIONAL_WAIT_MS) {
+              // Sort by creation time and concatenate
+              collectedResponses.sort((a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              );
+              const concatenated = collectedResponses.map(r => r.content).join('\n\n');
+              console.log(`✅ Returning ${collectedResponses.length} concatenated response(s)`);
+              return concatenated;
             }
           }
         }
@@ -326,6 +377,16 @@ class AgentService {
       } catch (error) {
         console.error('Error polling for agent response:', error);
       }
+    }
+
+    // Return whatever we collected if we hit timeout
+    if (collectedResponses.length > 0) {
+      collectedResponses.sort((a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      const concatenated = collectedResponses.map(r => r.content).join('\n\n');
+      console.log(`⏰ Timeout reached, returning ${collectedResponses.length} collected response(s)`);
+      return concatenated;
     }
 
     console.log(`❌ Timeout waiting for agent response in channel ${channelId}`);
