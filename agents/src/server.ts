@@ -3,6 +3,9 @@
  * Extends standard ElizaOS server to include A2A endpoints
  */
 
+// Load .env with override FIRST (before any other imports)
+import './load-env.js';
+
 // Polyfill CustomEvent for Node.js environment
 if (typeof global.CustomEvent === 'undefined') {
   global.CustomEvent = class CustomEvent extends Event {
@@ -17,6 +20,7 @@ if (typeof global.CustomEvent === 'undefined') {
 import { AgentServer } from '@elizaos/server';
 import type { UUID } from '@elizaos/core';
 import { sellerCharacter, buyerCharacter } from './index.js';
+import { sellerPlugin } from './seller-plugin.js';
 import { initializeA2AMiddleware, addAgentToA2A, removeAgentFromA2A } from './a2a/index.js';
 
 async function startServer() {
@@ -46,9 +50,13 @@ async function startServer() {
       console.log(`🔨 Creating new ${character.name} agent...`);
 
       // Start agent in ElizaOS
+      // Note: plugins must include both string plugin names AND custom plugin objects
       const [runtime] = await server.startAgents([{
         character,
-        plugins: character.plugins,
+        plugins: [
+          ...(character.plugins || []),  // String plugin names from character
+          ...(type === 'give' ? [sellerPlugin] : []),  // Seller plugin only for give type
+        ],
       }]);
 
       // Add to A2A

@@ -62,3 +62,21 @@ model User {
   @@index([type])
   @@index([reputationScore])
 }
+
+// Marketplace Listing model
+model Listing {
+  id              String   @id @default(uuid())
+  listingId       String   @unique // Blockchain listing ID
+  sellerAgentId   Int      // ERC-8004 Agent ID
+  title           String
+  description     String
+  basePrice       Float    // HBAR
+  expectedPrice   Float    // HBAR
+  status          String   @default("OPEN") // OPEN, RESERVED, COMPLETED, CANCELLED
+  transactionId   String   // Hedera transaction ID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([listingId])
+  @@index([status])
+}
