@@ -64,8 +64,8 @@
   },
   "scripts": {
     "postinstall": "patch-package",
-    "start": "SERVER_PORT=3333 tsx src/server.ts",
-    "dev": "SERVER_PORT=3333 tsx watch src/server.ts",
+    "start": "NODE_OPTIONS='--dns-result-order=ipv4first' SERVER_PORT=3333 tsx src/server.ts",
+    "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' SERVER_PORT=3333 tsx watch src/server.ts",
     "build": "bun run build.ts",
     "lint": "prettier --write ./src",
     "type-check": "tsc --noEmit",

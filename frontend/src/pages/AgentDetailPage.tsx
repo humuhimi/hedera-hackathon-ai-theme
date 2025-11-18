@@ -22,7 +22,8 @@ export function AgentDetailPage() {
     addUserMessage,
     addAgentMessage,
     addThinkingPlaceholder,
-  } = useChatHistory()
+    isLoading: historyLoading,
+  } = useChatHistory(id)
   const { isConnected, isSending, sendMessage } = useAgentWebSocket({
     agentId: id,
     agent,

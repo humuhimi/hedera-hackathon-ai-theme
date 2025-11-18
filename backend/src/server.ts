@@ -199,9 +199,18 @@ io.on('connection', (socket) => {
 });
 
 // Start server
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔌 Socket.IO server ready`);
   console.log(`🤖 ElizaOS HTTP API: ${ELIZAOS_URL}`);
+
+  // Wait for ElizaOS to be ready, then restore agents
+  setTimeout(async () => {
+    try {
+      await agentService.restoreAgentsToElizaOS();
+    } catch (error) {
+      console.error('❌ Failed to restore agents:', error);
+    }
+  }, 5000); // Wait 5 seconds for ElizaOS to initialize
 });

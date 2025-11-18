@@ -16,6 +16,15 @@ interface SendMessageParams {
   userId: string;
 }
 
+// Configuration constants
+const CONFIG = {
+  CONTEXT_MESSAGE_LIMIT: 10,       // Number of messages to include in context summary
+  CONTEXT_CHAR_LIMIT: 200,         // Max characters per message in summary
+  POLL_MAX_ATTEMPTS: 20,           // Max polling attempts for agent response
+  POLL_INTERVAL_MS: 1000,          // Polling interval in milliseconds
+  RECENT_MESSAGE_THRESHOLD_MS: 5000, // Threshold for "recent" messages
+} as const;
+
 class AgentService {
   private elizaOsUrl = process.env.ELIZAOS_URL;
   private elizaOsServerId = process.env.ELIZAOS_SERVER_ID;
@@ -171,14 +180,35 @@ class AgentService {
 
     // Send message to ElizaOS via messaging API
     try {
+      // Save user message to database
+      await prisma.message.create({
+        data: {
+          agentId,
+          role: 'user',
+          content: message,
+        },
+      });
+
+      // Check if this is the first message after restoration (context injection needed)
+      let messageWithContext = message;
+      const needsContextInjection = await this.checkIfNeedsContextInjection(agentId, agent.channelId);
+
+      if (needsContextInjection) {
+        const contextSummary = await this.getConversationContextSummary(agentId);
+        if (contextSummary) {
+          messageWithContext = `[System Context: The following is a summary of previous conversation history. Please refer to this information.]\n${contextSummary}\n\n[User's new message:]\n${message}`;
+          console.log(`📜 Injecting conversation context for agent ${agentId}`);
+        }
+      }
+
       const messagePayload = {
         channel_id: agent.channelId,
         server_id: this.elizaOsServerId,
         author_id: userId,
-        content: message,
+        content: messageWithContext,
         source_type: 'api',
         raw_message: {
-          text: message,
+          text: message, // Original message for display
           agentId: agentId,
           userId: userId,
         },
@@ -205,6 +235,17 @@ class AgentService {
       // Wait for agent response (poll for new messages)
       const agentResponse = await this.waitForAgentResponse(agent.channelId, userMessageId);
 
+      // Save agent response to database
+      if (agentResponse) {
+        await prisma.message.create({
+          data: {
+            agentId,
+            role: 'agent',
+            content: agentResponse,
+          },
+        });
+      }
+
       return {
         message: agentResponse || 'Agent is processing your message...',
         agentId,
@@ -221,13 +262,11 @@ class AgentService {
    * TODO: Replace HTTP polling with WebSocket/Socket.IO for real-time agent responses
    */
   private async waitForAgentResponse(channelId: string, afterMessageId?: string): Promise<string | null> {
-    const maxAttempts = 20; // 20 seconds max wait
-    const pollInterval = 1000; // 1 second
     let foundUserMessage = false;
 
     console.log(`⏳ Waiting for agent response in channel ${channelId}, after message ${afterMessageId}`);
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    for (let attempt = 0; attempt < CONFIG.POLL_MAX_ATTEMPTS; attempt++) {
       try {
         // Get recent messages from channel
         const messagesResponse = await fetch(
@@ -252,7 +291,7 @@ class AgentService {
           };
           const messages = messagesData.data?.messages || [];
 
-          console.log(`📋 Polling attempt ${attempt + 1}/${maxAttempts}, found ${messages.length} messages`);
+          console.log(`📋 Polling attempt ${attempt + 1}/${CONFIG.POLL_MAX_ATTEMPTS}, found ${messages.length} messages`);
 
           // Find our user message first to mark the position
           for (const msg of messages) {
@@ -273,7 +312,7 @@ class AgentService {
             for (const msg of messages) {
               if (msg.sourceType === 'agent_response') {
                 const messageAge = Date.now() - new Date(msg.createdAt).getTime();
-                if (messageAge < 5000) { // Message created within last 5 seconds
+                if (messageAge < CONFIG.RECENT_MESSAGE_THRESHOLD_MS) {
                   console.log(`✅ Found recent agent response: ${msg.id}`);
                   return msg.content || msg.rawMessage?.text || null;
                 }
@@ -283,7 +322,7 @@ class AgentService {
         }
 
         // Wait before next attempt
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        await new Promise(resolve => setTimeout(resolve, CONFIG.POLL_INTERVAL_MS));
       } catch (error) {
         console.error('Error polling for agent response:', error);
       }
@@ -344,8 +383,8 @@ class AgentService {
   async deleteAgent(agentId: string, userId: string) {
     // Delete with userId check to prevent unauthorized access
     const result = await prisma.agent.deleteMany({
-      where: { 
-        id: agentId, 
+      where: {
+        id: agentId,
         userId  // Ensure user owns the agent
       },
     });
@@ -355,6 +394,237 @@ class AgentService {
     }
 
     return { success: true };
+  }
+
+  /**
+   * Get message history for an agent
+   */
+  async getMessageHistory(agentId: string, userId: string, limit: number = 50) {
+    // Verify agent exists and belongs to user
+    const agent = await prisma.agent.findFirst({
+      where: { id: agentId, userId },
+    });
+
+    if (!agent) {
+      throw new Error('Agent not found or access denied');
+    }
+
+    // Get message history
+    return prisma.message.findMany({
+      where: { agentId },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Restore all agents to ElizaOS on server startup
+   * This ensures agents persist across restarts with conversation history
+   */
+  async restoreAgentsToElizaOS() {
+    console.log('🔄 Restoring agents to ElizaOS...');
+
+    // Get all active agents from database
+    const agents = await prisma.agent.findMany({
+      where: { status: 'active' },
+    });
+
+    if (agents.length === 0) {
+      console.log('📭 No agents to restore');
+      return;
+    }
+
+    console.log(`📦 Found ${agents.length} agents to restore`);
+
+    for (const agent of agents) {
+      try {
+        // Create agent in ElizaOS
+        const elizaResponse = await fetch(`${this.elizaOsUrl}/internal/agents/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: agent.type }),
+        });
+
+        if (!elizaResponse.ok) {
+          console.error(`❌ Failed to restore agent ${agent.id}: ${await elizaResponse.text()}`);
+          continue;
+        }
+
+        const elizaData = await elizaResponse.json() as { agentId: string };
+        const elizaAgentId = elizaData.agentId;
+
+        let channelId = agent.channelId;
+
+        // Reuse existing channel if available, otherwise create new one
+        if (channelId) {
+          console.log(`📡 Reusing existing channel ${channelId} for agent ${agent.name}`);
+
+          // Try to recreate the channel with the same ID
+          const channelPayload = {
+            id: channelId, // Use existing channel ID
+            serverId: this.elizaOsServerId,
+            name: agent.name,
+            type: 'direct',
+            participants: [agent.userId, elizaAgentId]
+          };
+
+          const channelResponse = await fetch(`${this.elizaOsUrl}/api/messaging/channels`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(channelPayload),
+          });
+
+          if (!channelResponse.ok) {
+            // Channel might already exist or creation failed, log but continue
+            console.warn(`⚠️ Could not recreate channel ${channelId}, trying with new channel`);
+            // Clear invalid channelId in database
+            await prisma.agent.update({
+              where: { id: agent.id },
+              data: { channelId: null },
+            });
+            channelId = null;
+          }
+        }
+
+        // Create new channel if no existing channel or recreation failed
+        if (!channelId) {
+          const channelPayload = {
+            id: elizaAgentId,
+            serverId: this.elizaOsServerId,
+            name: agent.name,
+            type: 'direct',
+            participants: [agent.userId, elizaAgentId]
+          };
+
+          const channelResponse = await fetch(`${this.elizaOsUrl}/api/messaging/channels`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(channelPayload),
+          });
+
+          if (!channelResponse.ok) {
+            console.error(`❌ Failed to create channel for agent ${agent.id}`);
+            continue;
+          }
+
+          const channelResult = await channelResponse.json() as { success: boolean; data: { channel: { id: string } } };
+          channelId = channelResult.data.channel.id;
+
+          // Update agent record with new channel ID
+          await prisma.agent.update({
+            where: { id: agent.id },
+            data: { channelId },
+          });
+        }
+
+        // Add agent as participant
+        await fetch(
+          `${this.elizaOsUrl}/api/messaging/central-channels/${channelId}/agents`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentId: elizaAgentId }),
+          }
+        );
+
+        // Add user as participant
+        await fetch(
+          `${this.elizaOsUrl}/api/messaging/central-channels/${channelId}/agents`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentId: agent.userId }),
+          }
+        );
+
+        // Log message history count (context will be injected on first message)
+        const messageCount = await prisma.message.count({ where: { agentId: agent.id } });
+        if (messageCount > 0) {
+          console.log(`📜 Agent has ${messageCount} messages in history`);
+        }
+
+        console.log(`✅ Restored agent ${agent.name} (${agent.id}) -> ElizaOS: ${elizaAgentId}, Channel: ${channelId}`);
+      } catch (error) {
+        console.error(`❌ Error restoring agent ${agent.id}:`, error);
+      }
+    }
+
+    console.log('✅ Agent restoration complete');
+  }
+
+  /**
+   * Check if this is the first message after agent restoration
+   * by checking if there are messages in ElizaOS channel
+   */
+  private async checkIfNeedsContextInjection(agentId: string, channelId: string): Promise<boolean> {
+    try {
+      // Check if we have stored messages but ElizaOS channel is empty/new
+      const storedMessageCount = await prisma.message.count({ where: { agentId } });
+
+      if (storedMessageCount <= 1) {
+        // No previous history or just the current message
+        return false;
+      }
+
+      // Check ElizaOS channel for messages
+      const messagesResponse = await fetch(
+        `${this.elizaOsUrl}/api/messaging/central-channels/${channelId}/messages?limit=5`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json() as {
+          data?: { messages?: Array<{ sourceType: string }> }
+        };
+        const messages = messagesData.data?.messages || [];
+
+        // Count non-history messages (actual conversation in ElizaOS)
+        const realMessages = messages.filter(m => m.sourceType !== 'history');
+
+        // If stored messages > real messages in ElizaOS, need context injection
+        return realMessages.length < 2 && storedMessageCount > 1;
+      }
+    } catch (error) {
+      console.warn('Error checking context injection need:', error);
+    }
+    return false;
+  }
+
+  /**
+   * Get a summary of previous conversation for context injection
+   */
+  private async getConversationContextSummary(agentId: string): Promise<string | null> {
+    try {
+      // Get recent messages excluding the current one
+      const messages = await prisma.message.findMany({
+        where: { agentId },
+        orderBy: { createdAt: 'desc' },
+        take: CONFIG.CONTEXT_MESSAGE_LIMIT,
+        skip: 1,  // Skip the current message
+      });
+
+      if (messages.length === 0) {
+        return null;
+      }
+
+      // Reverse to chronological order
+      messages.reverse();
+
+      // Format as conversation summary
+      const summary = messages.map(m => {
+        const role = m.role === 'user' ? 'User' : 'Agent';
+        const truncated = m.content.length > CONFIG.CONTEXT_CHAR_LIMIT;
+        return `${role}: ${m.content.substring(0, CONFIG.CONTEXT_CHAR_LIMIT)}${truncated ? '...' : ''}`;
+      }).join('\n');
+
+      return `Previous conversation (${messages.length} messages):\n${summary}`;
+    } catch (error) {
+      console.error('Error getting conversation context:', error);
+      return null;
+    }
   }
 }
 
