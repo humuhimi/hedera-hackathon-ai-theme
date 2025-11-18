@@ -6,6 +6,8 @@ AI Agent Marketplace built on Hedera Hashgraph
 
 This project is built for **Hedera Hackathon - Theme 1: AI & Agents**, exploring the fusion of AI-driven agents with decentralized infrastructure by creating marketplaces, coordination layers, and tools where autonomous actors can think, transact, and collaborate—leveraging Hedera's fast, low-cost microtransactions and secure consensus.
 
+
+
 ### Challenge Track
 
 **Theme 1: AI & Agents** - Unlocking the rise of transparent, autonomous economies through AI agents on decentralized infrastructure.
@@ -30,8 +32,49 @@ This project comprehensively addresses all challenge levels in a progressive man
 
 - Node.js v22.18.0
 - Hedera Testnet Account (for backend and contract deployment)
+- Pinata Account (for IPFS JWT)
+- Reown / WalletConnect Project ID
 - HashPack Wallet (Mobile App, for end users)
 - OpenAI API Key
+
+## Additional Account Setup (Required Before Running)
+Before starting development, configure these accounts and environment variables.
+
+1. Pinata Account — Generate Private JWT
+- Used for uploading AI agent metadata to IPFS.
+- Create an account and generate your Pinata JWT:
+🔗 https://app.pinata.cloud/
+
+2. Hedera Testnet Account + Keys
+- Register and retrieve:
+- Hedera Testnet Account ID
+- Private Key
+Hedera Open Access API Key
+🔗 https://portal.hedera.com/register
+
+- These values go into backend/.env.
+
+3. WalletConnect / Reown Project ID
+- Required for HashPack QR login.
+- Create a project:
+🔗 https://dashboard.reown.com/
+
+- Add to frontend/.env:
+
+### 4. Check `.env.example` Requirements
+
+#### **Root `.env`**
+
+#### **Backend `.env`**
+- HEDERA_ACCOUNT_ID=
+- HEDERA_PRIVATE_KEY=
+- PINATA_JWT=
+- DATABASE_URL=
+
+
+#### **Frontend `.env`**
+- VITE_WALLETCONNECT_PROJECT_ID=
+
 
 ### Node.js v22.18.0 Installation
 
