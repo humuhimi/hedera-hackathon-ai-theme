@@ -1,4 +1,5 @@
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Agent } from '../services/api'
 import { ChatMessage } from '../hooks/useChatHistory'
 
@@ -25,7 +26,32 @@ export function ChatPanel({
   onSendMessage,
 }: ChatPanelProps) {
   const [message, setMessage] = useState('')
+  const [showNavigatePrompt, setShowNavigatePrompt] = useState(false)
+  const [listingUrl, setListingUrl] = useState<string | null>(null)
+  const navigate = useNavigate()
   const isGiveType = agent.type === 'give'
+
+  // Detect listing URL in chat messages
+  useEffect(() => {
+    if (chatHistory.length === 0) return
+    const lastMessage = chatHistory[chatHistory.length - 1]
+    if (lastMessage && lastMessage.role === 'agent') {
+      // Look for listing URL pattern: /listing/123 or http://localhost:3000/listing/123
+      const urlMatch = lastMessage.text.match(/\/listing\/(\d+)/)
+      if (urlMatch) {
+        const detectedUrl = `/listing/${urlMatch[1]}`
+        setListingUrl(detectedUrl)
+        setShowNavigatePrompt(true)
+
+        // Auto-navigate after 2 seconds
+        const timer = setTimeout(() => {
+          navigate(detectedUrl)
+        }, 2000)
+
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [chatHistory, navigate])
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -33,6 +59,12 @@ export function ChatPanel({
 
     onSendMessage(message)
     setMessage('')
+  }
+
+  const handleNavigateNow = () => {
+    if (listingUrl) {
+      navigate(listingUrl)
+    }
   }
 
   return (
@@ -88,6 +120,26 @@ export function ChatPanel({
           </>
         )}
       </div>
+
+      {/* Navigation Prompt */}
+      {showNavigatePrompt && listingUrl && (
+        <div className="px-6 py-3 bg-green-50 border-t border-green-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-green-600 text-lg">✅</span>
+              <span className="text-sm text-green-800 font-medium">
+                Listing created! Redirecting in 2 seconds...
+              </span>
+            </div>
+            <button
+              onClick={handleNavigateNow}
+              className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+            >
+              View Now
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Chat Input */}
       <form onSubmit={handleSubmit} className="p-6 border-t border-gray-200">
