@@ -48,10 +48,13 @@ export function generateChallenge(accountId: string): {
   network: string;
 } {
   const challenge = crypto.randomBytes(32).toString('hex');
-  const domain = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const domain = process.env.FRONTEND_URL;
   const network = process.env.HEDERA_NETWORK;
+  if (!domain) {
+    throw new Error('FRONTEND_URL environment variable is required');
+  }
   if (!network) {
-    throw new Error('HEDERA_NETWORK not set');
+    throw new Error('HEDERA_NETWORK environment variable is required');
   }
   const issuedAt = new Date().toISOString();
 

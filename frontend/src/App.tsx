@@ -4,6 +4,7 @@ import { LandingPage } from './pages/LandingPage'
 import { HomePage } from './pages/HomePage'
 import { PrivateKeySavePage } from './pages/PrivateKeySavePage'
 import { AgentDetailPage } from './pages/AgentDetailPage'
+import { ListingDetailPage } from './pages/ListingDetailPage'
 import { Layout } from './components/layout/Layout'
 import { PrivateRoute } from './components/layout/PrivateRoute'
 
@@ -65,15 +66,27 @@ function App() {
         />
 
         {/* Private route - Agent detail page */}
-        <Route 
-          path="/agent/:id" 
+        <Route
+          path="/agent/:id"
           element={
             <PrivateRoute>
               <Layout>
                 <AgentDetailPage />
               </Layout>
             </PrivateRoute>
-          } 
+          }
+        />
+
+        {/* Private route - Listing detail page */}
+        <Route
+          path="/listing/:id"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <ListingDetailPage />
+              </Layout>
+            </PrivateRoute>
+          }
         />
 
         {/* Catch all - redirect to home */}

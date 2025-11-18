@@ -9,14 +9,15 @@ import { Server as SocketIOServer } from 'socket.io';
 import type { IncomingMessage, ClientRequest, ServerResponse } from 'http';
 import authRoutes from './routes/auth.routes.js';
 import agentRoutes from './routes/agent.routes.js';
+import marketplaceRoutes from './routes/marketplace.routes.js';
 import { verifyToken } from './services/jwt.service.js';
 import { agentService } from './services/agent.service.js';
 
 const app = express();
 const httpServer = createServer(app);
-const PORT = process.env.PORT || 4000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const ELIZAOS_URL = process.env.ELIZAOS_URL || 'http://localhost:3333';
+const PORT = process.env.PORT;
+const FRONTEND_URL = process.env.FRONTEND_URL;
+const ELIZAOS_URL = process.env.ELIZAOS_URL;
 
 // Middleware
 // CORS: Allow frontend only
@@ -31,6 +32,7 @@ app.use(express.json());
 // Routes
 app.use('/auth', authRoutes);
 app.use('/agents', agentRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
 
 // A2A Protocol Proxy - Forward /agents/*/a2a/** requests to ElizaOS server
 // IMPORTANT: Must be registered AFTER /agents routes to avoid conflicts
