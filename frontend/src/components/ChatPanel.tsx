@@ -33,6 +33,7 @@ export function ChatPanel({
 
   // Detect listing URL in chat messages
   useEffect(() => {
+    if (chatHistory.length === 0) return
     const lastMessage = chatHistory[chatHistory.length - 1]
     if (lastMessage && lastMessage.role === 'agent') {
       // Look for listing URL pattern: /listing/123 or http://localhost:3000/listing/123

@@ -15,8 +15,16 @@ router.post("/listings", async (req, res) => {
   try {
     const { sellerAgentId, title, description, basePrice, expectedPrice, accountId, privateKey } = req.body;
 
-    // Validation
-    if (!sellerAgentId || !title || !description || !basePrice || !expectedPrice || !accountId || !privateKey) {
+    // Validation - use explicit undefined/null checks for numeric fields that can be 0
+    if (
+      sellerAgentId === undefined || sellerAgentId === null ||
+      !title ||
+      !description ||
+      basePrice === undefined || basePrice === null ||
+      expectedPrice === undefined || expectedPrice === null ||
+      !accountId ||
+      !privateKey
+    ) {
       return res.status(400).json({
         error: "Missing required fields: sellerAgentId, title, description, basePrice, expectedPrice, accountId, privateKey",
       });

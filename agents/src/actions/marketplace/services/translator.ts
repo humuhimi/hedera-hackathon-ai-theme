@@ -94,6 +94,7 @@ Rules:
 - Combine information from ALL messages in the conversation
 - Set null for missing fields
 - Extract numbers from prices (e.g. "1~2 hbar" → basePrice: 1, expectedPrice: 2)
+- For FREE items (free, gratis, 0 yen, etc.), set BOTH basePrice: 0 AND expectedPrice: 0
 - Translate item names to English
 - Keep it concise`,
         },
@@ -127,8 +128,8 @@ Rules:
 
       return {
         title: data.title || undefined,
-        basePrice: data.basePrice || undefined,
-        expectedPrice: data.expectedPrice || undefined,
+        basePrice: typeof data.basePrice === 'number' ? data.basePrice : undefined,
+        expectedPrice: typeof data.expectedPrice === 'number' ? data.expectedPrice : undefined,
         description: data.description || undefined,
       };
     } catch (error) {

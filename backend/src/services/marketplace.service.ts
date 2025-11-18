@@ -8,7 +8,6 @@ import {
   AccountId,
   PrivateKey,
   ContractExecuteTransaction,
-  ContractCallQuery,
   ContractFunctionParameters,
   ContractId,
 } from "@hashgraph/sdk";
@@ -62,16 +61,19 @@ export async function createListing(params: {
       .setFunction("createListing", functionParams);
 
     const txResponse = await tx.execute(client);
-    const receipt = await txResponse.getReceipt(client);
+    await txResponse.getReceipt(client);
     const record = await txResponse.getRecord(client);
 
     const listingId = record.contractFunctionResult?.getUint256(0);
+    if (!listingId) {
+      throw new Error("Failed to retrieve listing ID from contract");
+    }
     const transactionId = txResponse.transactionId.toString();
 
     // Save to database
     await prisma.listing.create({
       data: {
-        listingId: listingId?.toString() || "",
+        listingId: listingId.toString(),
         sellerAgentId: Number(params.sellerAgentId),
         title: params.title,
         description: params.description,
