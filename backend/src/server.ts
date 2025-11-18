@@ -14,9 +14,9 @@ import { agentService } from './services/agent.service.js';
 
 const app = express();
 const httpServer = createServer(app);
-const PORT = process.env.PORT || 4000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const ELIZAOS_URL = process.env.ELIZAOS_URL || 'http://localhost:3333';
+const PORT = process.env.PORT;
+const FRONTEND_URL = process.env.FRONTEND_URL;
+const ELIZAOS_URL = process.env.ELIZAOS_URL;
 
 // Middleware
 // CORS: Allow frontend only
@@ -197,9 +197,18 @@ io.on('connection', (socket) => {
 });
 
 // Start server
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔌 Socket.IO server ready`);
   console.log(`🤖 ElizaOS HTTP API: ${ELIZAOS_URL}`);
+
+  // Wait for ElizaOS to be ready, then restore agents
+  setTimeout(async () => {
+    try {
+      await agentService.restoreAgentsToElizaOS();
+    } catch (error) {
+      console.error('❌ Failed to restore agents:', error);
+    }
+  }, 5000); // Wait 5 seconds for ElizaOS to initialize
 });

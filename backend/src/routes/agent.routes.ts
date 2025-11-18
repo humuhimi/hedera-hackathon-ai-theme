@@ -141,4 +141,24 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * Get message history for an agent
+ * GET /agents/:id/messages
+ */
+router.get('/:id/messages', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user!.userId;
+    const agentId = req.params.id;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const messages = await agentService.getMessageHistory(agentId, userId, limit);
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching message history:', error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to fetch message history'
+    });
+  }
+});
+
 export default router;

@@ -57,8 +57,24 @@ model User {
 
   // Relations
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    Message[]
 
   @@index([userId])
   @@index([type])
   @@index([reputationScore])
+}
+
+// Message model for agent conversation history
+model Message {
+  id          String   @id @default(uuid())
+  agentId     String
+  role        String   // "user" | "agent"
+  content     String   // Message content
+  createdAt   DateTime @default(now())
+
+  // Relations
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([createdAt])
 }
