@@ -149,7 +149,12 @@ router.get('/:id/messages', authenticateToken, async (req, res) => {
   try {
     const userId = req.user!.userId;
     const agentId = req.params.id;
-    const limit = parseInt(req.query.limit as string) || 50;
+    let limit = parseInt(req.query.limit as string, 10);
+    if (isNaN(limit) || limit < 1) {
+      limit = 50;
+    } else if (limit > 500) {
+      limit = 500;
+    }
 
     const messages = await agentService.getMessageHistory(agentId, userId, limit);
     res.json(messages);

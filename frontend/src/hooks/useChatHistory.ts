@@ -40,6 +40,8 @@ export function useChatHistory(agentId?: string) {
             text: msg.content,
             timestamp: msg.createdAt,
           })))
+        } else {
+          console.error(`Failed to fetch message history: ${response.status} ${response.statusText}`)
         }
       } catch (error) {
         console.error('Failed to fetch message history:', error)

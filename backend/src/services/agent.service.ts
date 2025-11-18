@@ -16,6 +16,15 @@ interface SendMessageParams {
   userId: string;
 }
 
+// Configuration constants
+const CONFIG = {
+  CONTEXT_MESSAGE_LIMIT: 10,       // Number of messages to include in context summary
+  CONTEXT_CHAR_LIMIT: 200,         // Max characters per message in summary
+  POLL_MAX_ATTEMPTS: 20,           // Max polling attempts for agent response
+  POLL_INTERVAL_MS: 1000,          // Polling interval in milliseconds
+  RECENT_MESSAGE_THRESHOLD_MS: 5000, // Threshold for "recent" messages
+} as const;
+
 class AgentService {
   private elizaOsUrl = process.env.ELIZAOS_URL;
   private elizaOsServerId = process.env.ELIZAOS_SERVER_ID;
@@ -187,7 +196,7 @@ class AgentService {
       if (needsContextInjection) {
         const contextSummary = await this.getConversationContextSummary(agentId);
         if (contextSummary) {
-          messageWithContext = `[システムコンテキスト: 以下は以前の会話履歴のサマリーです。この情報を参考にしてください。]\n${contextSummary}\n\n[ユーザーの新しいメッセージ:]\n${message}`;
+          messageWithContext = `[System Context: The following is a summary of previous conversation history. Please refer to this information.]\n${contextSummary}\n\n[User's new message:]\n${message}`;
           console.log(`📜 Injecting conversation context for agent ${agentId}`);
         }
       }
@@ -253,13 +262,11 @@ class AgentService {
    * TODO: Replace HTTP polling with WebSocket/Socket.IO for real-time agent responses
    */
   private async waitForAgentResponse(channelId: string, afterMessageId?: string): Promise<string | null> {
-    const maxAttempts = 20; // 20 seconds max wait
-    const pollInterval = 1000; // 1 second
     let foundUserMessage = false;
 
     console.log(`⏳ Waiting for agent response in channel ${channelId}, after message ${afterMessageId}`);
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    for (let attempt = 0; attempt < CONFIG.POLL_MAX_ATTEMPTS; attempt++) {
       try {
         // Get recent messages from channel
         const messagesResponse = await fetch(
@@ -284,7 +291,7 @@ class AgentService {
           };
           const messages = messagesData.data?.messages || [];
 
-          console.log(`📋 Polling attempt ${attempt + 1}/${maxAttempts}, found ${messages.length} messages`);
+          console.log(`📋 Polling attempt ${attempt + 1}/${CONFIG.POLL_MAX_ATTEMPTS}, found ${messages.length} messages`);
 
           // Find our user message first to mark the position
           for (const msg of messages) {
@@ -305,7 +312,7 @@ class AgentService {
             for (const msg of messages) {
               if (msg.sourceType === 'agent_response') {
                 const messageAge = Date.now() - new Date(msg.createdAt).getTime();
-                if (messageAge < 5000) { // Message created within last 5 seconds
+                if (messageAge < CONFIG.RECENT_MESSAGE_THRESHOLD_MS) {
                   console.log(`✅ Found recent agent response: ${msg.id}`);
                   return msg.content || msg.rawMessage?.text || null;
                 }
@@ -315,7 +322,7 @@ class AgentService {
         }
 
         // Wait before next attempt
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        await new Promise(resolve => setTimeout(resolve, CONFIG.POLL_INTERVAL_MS));
       } catch (error) {
         console.error('Error polling for agent response:', error);
       }
@@ -470,6 +477,11 @@ class AgentService {
           if (!channelResponse.ok) {
             // Channel might already exist or creation failed, log but continue
             console.warn(`⚠️ Could not recreate channel ${channelId}, trying with new channel`);
+            // Clear invalid channelId in database
+            await prisma.agent.update({
+              where: { id: agent.id },
+              data: { channelId: null },
+            });
             channelId = null;
           }
         }
@@ -525,8 +537,11 @@ class AgentService {
           }
         );
 
-        // Restore conversation history to ElizaOS
-        await this.restoreConversationHistory(agent.id, channelId, agent.userId, elizaAgentId);
+        // Log message history count (context will be injected on first message)
+        const messageCount = await prisma.message.count({ where: { agentId: agent.id } });
+        if (messageCount > 0) {
+          console.log(`📜 Agent has ${messageCount} messages in history`);
+        }
 
         console.log(`✅ Restored agent ${agent.name} (${agent.id}) -> ElizaOS: ${elizaAgentId}, Channel: ${channelId}`);
       } catch (error) {
@@ -535,23 +550,6 @@ class AgentService {
     }
 
     console.log('✅ Agent restoration complete');
-  }
-
-  /**
-   * Restore conversation history from database to ElizaOS channel
-   * Note: This sends messages as 'history' type, but ElizaOS may not use them for context.
-   * The main context injection happens via checkIfNeedsContextInjection/getConversationContextSummary.
-   */
-  private async restoreConversationHistory(
-    agentId: string,
-    channelId: string,
-    userId: string,
-    elizaAgentId: string
-  ) {
-    // Skip message restoration to ElizaOS - it doesn't help with agent memory
-    // Instead, we inject context summary on first message (see sendMessage)
-    const messageCount = await prisma.message.count({ where: { agentId } });
-    console.log(`📜 Agent ${agentId} has ${messageCount} messages in history (context will be injected on first message)`);
   }
 
   /**
@@ -604,7 +602,7 @@ class AgentService {
       const messages = await prisma.message.findMany({
         where: { agentId },
         orderBy: { createdAt: 'desc' },
-        take: 10, // Last 10 messages for context
+        take: CONFIG.CONTEXT_MESSAGE_LIMIT,
         skip: 1,  // Skip the current message
       });
 
@@ -617,11 +615,12 @@ class AgentService {
 
       // Format as conversation summary
       const summary = messages.map(m => {
-        const role = m.role === 'user' ? 'ユーザー' : 'エージェント';
-        return `${role}: ${m.content.substring(0, 200)}${m.content.length > 200 ? '...' : ''}`;
+        const role = m.role === 'user' ? 'User' : 'Agent';
+        const truncated = m.content.length > CONFIG.CONTEXT_CHAR_LIMIT;
+        return `${role}: ${m.content.substring(0, CONFIG.CONTEXT_CHAR_LIMIT)}${truncated ? '...' : ''}`;
       }).join('\n');
 
-      return `過去の会話 (${messages.length}件):\n${summary}`;
+      return `Previous conversation (${messages.length} messages):\n${summary}`;
     } catch (error) {
       console.error('Error getting conversation context:', error);
       return null;
