@@ -50,7 +50,7 @@ async function updateSearchProgress(
  * Process automatic search for a buy request
  * This runs asynchronously after the buy request is created
  */
-async function processAutoSearch(buyRequestId: string, searchQuery: string, maxPrice: number) {
+async function processAutoSearch(buyRequestId: string, searchQuery: string, maxPrice: number, buyerAgentId: number) {
   try {
     // Step 1: Search listings
     await updateSearchProgress(buyRequestId, 'searching', 'Searching for matching listings...');
@@ -120,11 +120,11 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       }
     );
 
-    // Step 4: Initiate negotiation
+    // Step 4: Initiate negotiation - find and update NegotiationRoom
     await updateSearchProgress(
       buyRequestId,
       'negotiating',
-      'Initiating negotiation with seller agent...',
+      'Joining negotiation room...',
       {
         matchedListingId: bestMatch.listingId,
         sellerAgentId: bestMatch.sellerAgentId,
@@ -132,13 +132,33 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       }
     );
 
-    // TODO: Send actual A2A negotiation request here
+    // Find the NegotiationRoom for this listing
+    const room = await prisma.negotiationRoom.findUnique({
+      where: { listingId: bestMatch.listingId },
+    });
+
+    if (!room) {
+      throw new Error(`NegotiationRoom not found for listing ${bestMatch.listingId}`);
+    }
+
+    // Get buyer's A2A endpoint
+    const buyerA2AInfo = await getAgentA2AEndpoint(buyerAgentId);
+
+    // Update NegotiationRoom with buyer info
+    await prisma.negotiationRoom.update({
+      where: { id: room.id },
+      data: {
+        buyerAgentId: buyerAgentId,
+        buyerA2AEndpoint: buyerA2AInfo.a2aEndpoint,
+        status: 'ACTIVE',
+      },
+    });
 
     // Complete
     await updateSearchProgress(
       buyRequestId,
       'complete',
-      'Agent connection established! Ready to negotiate.',
+      'Joined negotiation room! Ready to negotiate.',
       {
         matchedListingId: bestMatch.listingId,
         sellerAgentId: bestMatch.sellerAgentId,
@@ -146,11 +166,16 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       }
     );
 
-    // Update status to MATCHED
+    // Update BuyRequest status and link to NegotiationRoom
     await prisma.buyRequest.update({
       where: { id: buyRequestId },
-      data: { status: 'MATCHED' },
+      data: {
+        status: 'MATCHED',
+        negotiationRoomId: room.id,
+      },
     });
+
+    console.log(`🤝 BuyRequest ${buyRequestId} joined NegotiationRoom ${room.id}`);
 
   } catch (error: any) {
     console.error('Auto search failed:', error);
@@ -191,7 +216,7 @@ export async function createBuyRequest(params: {
     });
 
     // Start auto search process asynchronously (don't await)
-    processAutoSearch(buyRequest.id, params.title, params.maxPrice).catch(err => {
+    processAutoSearch(buyRequest.id, params.title, params.maxPrice, Number(params.buyerAgentId)).catch(err => {
       console.error('Auto search process error:', err);
     });
 
@@ -240,6 +265,7 @@ export async function getBuyRequest(buyRequestId: string) {
       sellerAgentId: buyRequest.sellerAgentId,
       a2aEndpoint: buyRequest.a2aEndpoint,
       searchError: buyRequest.searchError,
+      negotiationRoomId: buyRequest.negotiationRoomId,
     };
   } catch (error) {
     console.error("Error getting buy request:", error);

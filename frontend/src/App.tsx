@@ -6,6 +6,7 @@ import { PrivateKeySavePage } from './pages/PrivateKeySavePage'
 import { AgentDetailPage } from './pages/AgentDetailPage'
 import { ListingDetailPage } from './pages/ListingDetailPage'
 import { BuyRequestDetailPage } from './pages/BuyRequestDetailPage'
+import { NegotiationPage } from './pages/NegotiationPage'
 import { Layout } from './components/layout/Layout'
 import { PrivateRoute } from './components/layout/PrivateRoute'
 
@@ -98,6 +99,16 @@ function App() {
               <Layout>
                 <BuyRequestDetailPage />
               </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Private route - Negotiation room page */}
+        <Route
+          path="/negotiation/:roomId"
+          element={
+            <PrivateRoute>
+              <NegotiationPage />
             </PrivateRoute>
           }
         />

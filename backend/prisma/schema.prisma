@@ -141,8 +141,45 @@ model BuyRequest {
   sellerAgentId   Int?     // The seller agent ID
   a2aEndpoint     String?  // Resolved A2A endpoint
   searchError     String?  // Error message if search failed
+  negotiationRoomId String? // Link to NegotiationRoom
 
   @@index([buyerAgentId])
   @@index([status])
   @@index([category])
+}
+
+// Negotiation Room - Created when Listing is created, used for A2A communication
+model NegotiationRoom {
+  id              String   @id @default(uuid())
+  listingId       Int      @unique // One room per listing
+  sellerAgentId   Int      // ERC-8004 Agent ID of seller
+  buyerAgentId    Int?     // ERC-8004 Agent ID of buyer (set when matched)
+  sellerA2AEndpoint String // Seller's A2A endpoint
+  buyerA2AEndpoint  String? // Buyer's A2A endpoint (set when matched)
+  status          String   @default("WAITING") // WAITING, ACTIVE, COMPLETED, CANCELLED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  messages        NegotiationMessage[]
+
+  @@index([listingId])
+  @@index([sellerAgentId])
+  @@index([buyerAgentId])
+  @@index([status])
+}
+
+// Negotiation Message - A2A communication log
+model NegotiationMessage {
+  id              String   @id @default(uuid())
+  roomId          String
+  room            NegotiationRoom @relation(fields: [roomId], references: [id])
+  sender          String   // "seller" or "buyer"
+  senderAgentId   Int      // ERC-8004 Agent ID
+  content         String   // Message content
+  messageType     String   @default("text") // text, offer, counter_offer, accept, reject
+  metadata        String?  // JSON metadata (e.g., price offers)
+  createdAt       DateTime @default(now())
+
+  @@index([roomId])
+  @@index([createdAt])
 }

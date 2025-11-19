@@ -10,6 +10,7 @@ import type { IncomingMessage, ClientRequest, ServerResponse } from 'http';
 import authRoutes from './routes/auth.routes.js';
 import agentRoutes from './routes/agent.routes.js';
 import marketplaceRoutes from './routes/marketplace.routes.js';
+import negotiationRoutes from './routes/negotiation.routes.js';
 import { verifyToken } from './services/jwt.service.js';
 import { agentService } from './services/agent.service.js';
 import { PrismaClient } from '@prisma/client';
@@ -36,6 +37,7 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/agents', agentRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/negotiation', negotiationRoutes);
 
 // A2A Protocol Proxy - Forward /agents/*/a2a/** requests to ElizaOS server
 // Maps erc8004AgentId (on-chain) to elizaAgentId (ElizaOS runtime)
@@ -242,6 +244,18 @@ io.on('connection', (socket) => {
   socket.on('buyRequest:leave', ({ buyRequestId }) => {
     socket.leave(`buyRequest:${buyRequestId}`);
     console.log(`👋 User ${socket.data.userId} left buyRequest ${buyRequestId}`);
+  });
+
+  // Join negotiation room to receive messages
+  socket.on('negotiation:join', ({ roomId }) => {
+    socket.join(`negotiation:${roomId}`);
+    console.log(`🤝 User ${socket.data.userId} joined negotiation ${roomId}`);
+  });
+
+  // Leave negotiation room
+  socket.on('negotiation:leave', ({ roomId }) => {
+    socket.leave(`negotiation:${roomId}`);
+    console.log(`👋 User ${socket.data.userId} left negotiation ${roomId}`);
   });
 
   socket.on('disconnect', () => {

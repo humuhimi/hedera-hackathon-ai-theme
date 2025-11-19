@@ -21,6 +21,7 @@ interface BuyRequest {
   sellerAgentId: number | null;
   a2aEndpoint: string | null;
   searchError: string | null;
+  negotiationRoomId: string | null;
 }
 
 export function BuyRequestDetailPage() {
@@ -293,15 +294,12 @@ export function BuyRequestDetailPage() {
             )}
 
             {/* Action Button */}
-            {buyRequest.searchStep === 'complete' && (
+            {buyRequest.searchStep === 'complete' && buyRequest.negotiationRoomId && (
               <button
-                onClick={() => {
-                  // TODO: Navigate to conversation page
-                  alert('View Conversation - Coming soon!');
-                }}
+                onClick={() => navigate(`/negotiation/${buyRequest.negotiationRoomId}`)}
                 className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors"
               >
-                View Conversation
+                Go to Negotiation Room
               </button>
             )}
           </div>

@@ -90,11 +90,31 @@ export async function createListing(params: {
       },
     });
 
+    // Get seller's A2A endpoint and create NegotiationRoom
+    let negotiationRoomId: string | undefined;
+    try {
+      const a2aInfo = await getAgentA2AEndpoint(Number(params.sellerAgentId));
+      const room = await prisma.negotiationRoom.create({
+        data: {
+          listingId: Number(listingId.toString()),
+          sellerAgentId: Number(params.sellerAgentId),
+          sellerA2AEndpoint: a2aInfo.a2aEndpoint,
+          status: "WAITING",
+        },
+      });
+      negotiationRoomId = room.id;
+      console.log(`📦 Created NegotiationRoom ${room.id} for listing ${listingId}`);
+    } catch (roomError) {
+      console.error("Failed to create NegotiationRoom:", roomError);
+      // Don't fail the listing creation if room creation fails
+    }
+
     return {
       success: true,
       listingId: listingId?.toString(),
       transactionId: transactionId,
       fee: Number(record.transactionFee.toTinybars()) / 100_000_000,
+      negotiationRoomId,
     };
   } catch (error) {
     console.error("Error creating listing:", error);
