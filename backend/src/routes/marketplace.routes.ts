@@ -64,6 +64,9 @@ router.get("/listings/:id", async (req, res) => {
     res.json(listing);
   } catch (error: any) {
     console.error(`Error in GET /api/marketplace/listings/${req.params.id}:`, error);
+    if (error.message?.includes('not found')) {
+      return res.status(404).json({ error: error.message });
+    }
     res.status(500).json({ error: error.message || "Failed to get listing" });
   }
 });
@@ -90,10 +93,16 @@ router.post("/inquiries", async (req, res) => {
       });
     }
 
+    // Validate offerPrice
+    const offerPriceNum = parseFloat(offerPrice);
+    if (isNaN(offerPriceNum) || !isFinite(offerPriceNum) || offerPriceNum <= 0) {
+      return res.status(400).json({ error: "offerPrice must be a valid positive number" });
+    }
+
     const result = await marketplaceService.createInquiry({
       buyerAgentId,
       listingId,
-      offerPrice: parseFloat(offerPrice),
+      offerPrice: offerPriceNum,
       message,
       accountId,
       privateKey,
@@ -122,6 +131,9 @@ router.get("/inquiries/:id", async (req, res) => {
     res.json(inquiry);
   } catch (error: any) {
     console.error(`Error in GET /api/marketplace/inquiries/${req.params.id}:`, error);
+    if (error.message?.includes('not found')) {
+      return res.status(404).json({ error: error.message });
+    }
     res.status(500).json({ error: error.message || "Failed to get inquiry" });
   }
 });
@@ -147,12 +159,22 @@ router.post("/buy-requests", async (req, res) => {
       });
     }
 
+    // Validate prices
+    const minPriceNum = parseFloat(minPrice);
+    const maxPriceNum = parseFloat(maxPrice);
+    if (isNaN(minPriceNum) || isNaN(maxPriceNum) || !isFinite(minPriceNum) || !isFinite(maxPriceNum) || minPriceNum < 0 || maxPriceNum < 0) {
+      return res.status(400).json({ error: "Prices must be valid positive numbers" });
+    }
+    if (maxPriceNum < minPriceNum) {
+      return res.status(400).json({ error: "maxPrice must be greater than or equal to minPrice" });
+    }
+
     const result = await buyRequestService.createBuyRequest({
       buyerAgentId,
       title,
       description,
-      minPrice: parseFloat(minPrice),
-      maxPrice: parseFloat(maxPrice),
+      minPrice: minPriceNum,
+      maxPrice: maxPriceNum,
       category,
     });
 
@@ -175,6 +197,9 @@ router.get("/buy-requests/:id", async (req, res) => {
     res.json(buyRequest);
   } catch (error: any) {
     console.error(`Error in GET /api/marketplace/buy-requests/${req.params.id}:`, error);
+    if (error.message?.includes('not found')) {
+      return res.status(404).json({ error: error.message });
+    }
     res.status(500).json({ error: error.message || "Failed to get buy request" });
   }
 });

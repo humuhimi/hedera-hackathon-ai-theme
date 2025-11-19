@@ -9,7 +9,7 @@
     "dev:agents": "cd agents && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "dev:db": "cd backend && npx prisma studio --port 5556",
+    "dev:db": "cd backend && npx prisma studio --port 5555",
     "test": "hardhat test",
     "compile": "hardhat compile",
     "clean": "hardhat clean",

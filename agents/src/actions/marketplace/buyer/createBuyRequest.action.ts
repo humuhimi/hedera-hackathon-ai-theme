@@ -59,11 +59,6 @@ export const createBuyRequestAction: Action = {
       // All params present - create the buy request
       console.log('✅ All params present. Creating buy request...\n');
 
-      // Clear the in-progress flag
-      if (state) {
-        (state as any).buyRequestInProgress = false;
-      }
-
       const result = await marketplaceApi.createBuyRequest(extraction.params as BuyRequestParams);
 
       console.log('✅ Buy request created!');
@@ -75,6 +70,11 @@ export const createBuyRequestAction: Action = {
       }
       const buyRequestUrl = `${process.env.FRONTEND_URL}/buy-request/${result.buyRequestId}`;
 
+      // Clear the in-progress flag after success
+      if (state) {
+        (state as any).buyRequestInProgress = false;
+      }
+
       await callback({
         text: `✅ Buy request posted!\n\n🛒 ${extraction.params.title}\nBudget: ${extraction.params.minPrice}-${extraction.params.maxPrice} HBAR\nID: ${result.buyRequestId}\n\n🔗 ${buyRequestUrl}`,
         action: 'CREATE_BUY_REQUEST',
@@ -83,6 +83,11 @@ export const createBuyRequestAction: Action = {
       console.log('✅ Success!\n');
     } catch (error: any) {
       console.error('❌ Error:', error.message);
+
+      // Clear the in-progress flag on error
+      if (state) {
+        (state as any).buyRequestInProgress = false;
+      }
 
       await callback({
         text: `❌ Failed: ${error.message}`,

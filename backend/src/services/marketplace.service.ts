@@ -186,7 +186,7 @@ export async function createInquiry(params: {
 
     return {
       success: true,
-      inquiryId: inquiryId?.toString(),
+      inquiryId: inquiryId.toString(),
       transactionId: transactionId,
       fee: Number(record.transactionFee.toTinybars()) / 100_000_000,
     };

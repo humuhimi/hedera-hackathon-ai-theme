@@ -59,11 +59,6 @@ export const createListingAction: Action = {
       // All params present - create the listing
       console.log('✅ All params present. Creating listing...\n');
 
-      // Clear the in-progress flag
-      if (state) {
-        (state as any).listingInProgress = false;
-      }
-
       const result = await marketplaceApi.createListing(extraction.params as ListingParams);
 
       console.log('✅ Listing created!');
@@ -75,6 +70,11 @@ export const createListingAction: Action = {
       }
       const listingUrl = `${process.env.FRONTEND_URL}/listing/${result.listingId}`;
 
+      // Clear the in-progress flag after success
+      if (state) {
+        (state as any).listingInProgress = false;
+      }
+
       await callback({
         text: `✅ Listing created!\n\n📦 ${extraction.params.title}\nID: ${result.listingId}\nPrice: ${extraction.params.basePrice}-${extraction.params.expectedPrice} HBAR\n\n🔗 ${listingUrl}`,
         action: 'CREATE_LISTING',
@@ -83,6 +83,11 @@ export const createListingAction: Action = {
       console.log('✅ Success!\n');
     } catch (error: any) {
       console.error('❌ Error:', error.message);
+
+      // Clear the in-progress flag on error
+      if (state) {
+        (state as any).listingInProgress = false;
+      }
 
       await callback({
         text: `❌ Failed: ${error.message}`,
