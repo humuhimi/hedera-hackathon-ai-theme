@@ -39,16 +39,23 @@ async function startServer() {
   // Register custom API routes (using /internal/* to avoid ElizaOS /api/* routing)
   server.app.post('/internal/agents/create', async (req, res) => {
     try {
-      const { type } = req.body;
+      const { type, elizaAgentId } = req.body;
 
       if (!type || (type !== 'give' && type !== 'want')) {
         return res.status(400).json({ error: 'Invalid type. Must be "give" or "want"' });
       }
 
-      // Select character based on type
-      const character = type === 'give' ? sellerCharacter : buyerCharacter;
+      // Select base character based on type and create a unique instance
+      const baseCharacter = type === 'give' ? sellerCharacter : buyerCharacter;
 
-      console.log(`🔨 Creating new ${character.name} agent...`);
+      // Use provided elizaAgentId (for restoration) or generate new UUID
+      const agentId = elizaAgentId || crypto.randomUUID();
+      const character = {
+        ...baseCharacter,
+        id: agentId,
+      };
+
+      console.log(`🔨 Creating ${character.name} agent (ID: ${agentId}, restore: ${!!elizaAgentId})...`);
 
       // Start agent in ElizaOS
       // Note: plugins must include both string plugin names AND custom plugin objects

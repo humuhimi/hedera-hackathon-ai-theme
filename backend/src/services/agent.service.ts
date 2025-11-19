@@ -129,7 +129,7 @@ class AgentService {
     const registration = await erc8004Service.registerAgent(userId, {
       name: name,
       type: type as 'give' | 'want',
-      description: description || ''
+      description: description || '',
     });
     console.log(`✅ Agent registered on blockchain with ID: ${registration.agentId}`);
 
@@ -142,6 +142,7 @@ class AgentService {
         description,
         status: 'active',
         channelId: actualChannelId, // Use actual channel ID from ElizaOS response
+        elizaAgentId: elizaAgentId, // ElizaOS agent ID for A2A communication
         erc8004AgentId: registration.agentId,
         blockchainTxId: registration.transactionId,
         tokenURI: registration.tokenURI,
@@ -499,11 +500,15 @@ class AgentService {
 
     for (const agent of agents) {
       try {
-        // Create agent in ElizaOS
+        // Create agent in ElizaOS with existing elizaAgentId if available
+        // This allows ElizaOS to restore the agent's memory and conversation history
         const elizaResponse = await fetch(`${this.elizaOsUrl}/internal/agents/create`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: agent.type }),
+          body: JSON.stringify({
+            type: agent.type,
+            elizaAgentId: agent.elizaAgentId,  // Pass existing ID for restoration
+          }),
         });
 
         if (!elizaResponse.ok) {
@@ -544,6 +549,14 @@ class AgentService {
               data: { channelId: null },
             });
             channelId = null;
+          } else {
+            // Only update elizaAgentId if it was newly generated (not restored)
+            if (!agent.elizaAgentId) {
+              await prisma.agent.update({
+                where: { id: agent.id },
+                data: { elizaAgentId: elizaAgentId },
+              });
+            }
           }
         }
 
@@ -571,10 +584,14 @@ class AgentService {
           const channelResult = await channelResponse.json() as { success: boolean; data: { channel: { id: string } } };
           channelId = channelResult.data.channel.id;
 
-          // Update agent record with new channel ID
+          // Update agent record with new channel ID and elizaAgentId if newly generated
+          const updateData: { channelId: string; elizaAgentId?: string } = { channelId };
+          if (!agent.elizaAgentId) {
+            updateData.elizaAgentId = elizaAgentId;
+          }
           await prisma.agent.update({
             where: { id: agent.id },
-            data: { channelId },
+            data: updateData,
           });
         }
 

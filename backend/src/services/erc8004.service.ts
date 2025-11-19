@@ -112,11 +112,30 @@ class ERC8004Service {
     // Convert Hedera ContractId to EVM address (0x...) for CAIP-10 compliance
     const registryEvmAddress = ContractId.fromString(this.identityRegistryId).toSolidityAddress();
 
+    // Build endpoints array
+    const endpoints: Array<{ name: string; endpoint: string; version?: string }> = [];
+
+    // Add A2A endpoint using erc8004AgentId (permanent on-chain ID)
+    // Backend proxy maps erc8004AgentId -> elizaAgentId internally
+    const a2aBaseUrl = process.env.A2A_PUBLIC_URL;
+    if (!a2aBaseUrl) {
+      throw new Error('A2A_PUBLIC_URL must be set in environment');
+    }
+    const a2aEndpoint = `${a2aBaseUrl}/agents/${agentId}/a2a/.well-known/agent-card.json`;
+
+    endpoints.push({
+      name: 'a2a',
+      endpoint: a2aEndpoint,
+      version: '0.3.0',
+    });
+
+    console.log(`   A2A Endpoint: ${a2aEndpoint}`);
+
     const registrationFile: ERC8004RegistrationFile = {
       type: ERC8004_REGISTRATION_TYPE,
       name: agentData.name,
       description: `${agentData.description}\n\nAgent Type: ${agentData.type}`,
-      endpoints: [],  // Empty for now, will be used when A2A is implemented
+      endpoints: endpoints,
       registrations: [
         {
           agentId: agentId,

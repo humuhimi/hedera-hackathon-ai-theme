@@ -12,6 +12,9 @@ import agentRoutes from './routes/agent.routes.js';
 import marketplaceRoutes from './routes/marketplace.routes.js';
 import { verifyToken } from './services/jwt.service.js';
 import { agentService } from './services/agent.service.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,21 +38,57 @@ app.use('/agents', agentRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 
 // A2A Protocol Proxy - Forward /agents/*/a2a/** requests to ElizaOS server
+// Maps erc8004AgentId (on-chain) to elizaAgentId (ElizaOS runtime)
 // IMPORTANT: Must be registered AFTER /agents routes to avoid conflicts
-app.use('/agents/:agentId/a2a', createProxyMiddleware({
+app.use('/agents/:agentId/a2a', async (req, res, next) => {
+  const erc8004AgentId = parseInt(req.params.agentId, 10);
+
+  if (isNaN(erc8004AgentId)) {
+    res.status(400).json({ error: 'Invalid agent ID' });
+    return;
+  }
+
+  try {
+    // Look up elizaAgentId from database using erc8004AgentId
+    const agent = await prisma.agent.findFirst({
+      where: { erc8004AgentId: erc8004AgentId },
+      select: { elizaAgentId: true }
+    });
+
+    if (!agent || !agent.elizaAgentId) {
+      res.status(404).json({ error: 'Agent not found or not registered with ElizaOS' });
+      return;
+    }
+
+    // Store elizaAgentId for proxy to use
+    (req as any).elizaAgentId = agent.elizaAgentId;
+    next();
+  } catch (error) {
+    console.error('❌ A2A Proxy DB Error:', error);
+    res.status(500).json({ error: 'Failed to resolve agent' });
+  }
+}, createProxyMiddleware({
   target: ELIZAOS_URL,
   changeOrigin: true,
   pathRewrite: (path, req) => {
-    // Reconstruct the full path including the agentId
+    // Replace erc8004AgentId with elizaAgentId in the path
     const expressReq = req as Request;
-    return expressReq.originalUrl || path;
+    const elizaAgentId = (expressReq as any).elizaAgentId;
+    const erc8004AgentId = expressReq.params.agentId;
+
+    // Rewrite: /agents/{erc8004AgentId}/a2a/... -> /agents/{elizaAgentId}/a2a/...
+    const originalUrl = expressReq.originalUrl || path;
+    const newPath = originalUrl.replace(`/agents/${erc8004AgentId}/`, `/agents/${elizaAgentId}/`);
+    return newPath;
   },
   on: {
     proxyReq: (proxyReq: ClientRequest, req: IncomingMessage): void => {
-      const targetUrl = new URL(ELIZAOS_URL);
+      const targetUrl = new URL(ELIZAOS_URL!);
       proxyReq.setHeader('Host', targetUrl.host);
       const expressReq = req as Request;
-      console.log(`🔄 Proxying A2A: ${req.method} ${expressReq.originalUrl} -> ${ELIZAOS_URL}${expressReq.originalUrl}`);
+      const elizaAgentId = (expressReq as any).elizaAgentId;
+      const erc8004AgentId = expressReq.params.agentId;
+      console.log(`🔄 Proxying A2A: erc8004#${erc8004AgentId} -> eliza#${elizaAgentId}`);
     },
     proxyRes: (proxyRes: IncomingMessage): void => {
       console.log(`✅ A2A Response: ${proxyRes.statusCode}`);
