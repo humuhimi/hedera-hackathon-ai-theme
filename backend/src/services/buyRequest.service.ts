@@ -5,7 +5,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import { getListings, getAgentA2AEndpoint } from "./marketplace.service";
-import { io } from "../server";
+import { io } from "../socket";
 
 const prisma = new PrismaClient();
 
@@ -23,6 +23,7 @@ async function updateSearchProgress(
     sellerAgentId?: number;
     a2aEndpoint?: string;
     searchError?: string;
+    negotiationRoomId?: string;
   }
 ) {
   const updated = await prisma.buyRequest.update({
@@ -43,6 +44,7 @@ async function updateSearchProgress(
     sellerAgentId: extra?.sellerAgentId ?? updated.sellerAgentId,
     a2aEndpoint: extra?.a2aEndpoint ?? updated.a2aEndpoint,
     searchError: extra?.searchError ?? updated.searchError,
+    negotiationRoomId: extra?.negotiationRoomId ?? updated.negotiationRoomId,
   });
 }
 
@@ -87,7 +89,7 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       buyRequestId,
       'verifying',
       `Verifying listing #${bestMatch.listingId} on-chain...`,
-      { matchedListingId: bestMatch.listingId, sellerAgentId: bestMatch.sellerAgentId }
+      { matchedListingId: Number(bestMatch.listingId), sellerAgentId: bestMatch.sellerAgentId }
     );
 
     // TODO: Add actual on-chain verification here
@@ -96,7 +98,7 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       buyRequestId,
       'verified',
       `Listing #${bestMatch.listingId} verified`,
-      { matchedListingId: bestMatch.listingId, sellerAgentId: bestMatch.sellerAgentId }
+      { matchedListingId: Number(bestMatch.listingId), sellerAgentId: bestMatch.sellerAgentId }
     );
 
     // Step 3: Get A2A endpoint
@@ -104,7 +106,7 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       buyRequestId,
       'contacting',
       `Getting A2A endpoint for Agent #${bestMatch.sellerAgentId}...`,
-      { matchedListingId: bestMatch.listingId, sellerAgentId: bestMatch.sellerAgentId }
+      { matchedListingId: Number(bestMatch.listingId), sellerAgentId: bestMatch.sellerAgentId }
     );
 
     const a2aInfo = await getAgentA2AEndpoint(bestMatch.sellerAgentId);
@@ -114,7 +116,7 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       'contacted',
       'A2A endpoint resolved',
       {
-        matchedListingId: bestMatch.listingId,
+        matchedListingId: Number(bestMatch.listingId),
         sellerAgentId: bestMatch.sellerAgentId,
         a2aEndpoint: a2aInfo.a2aEndpoint
       }
@@ -126,7 +128,7 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       'negotiating',
       'Joining negotiation room...',
       {
-        matchedListingId: bestMatch.listingId,
+        matchedListingId: Number(bestMatch.listingId),
         sellerAgentId: bestMatch.sellerAgentId,
         a2aEndpoint: a2aInfo.a2aEndpoint
       }
@@ -154,24 +156,24 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       },
     });
 
-    // Complete
+    // Complete - include negotiationRoomId for frontend navigation
     await updateSearchProgress(
       buyRequestId,
       'complete',
       'Joined negotiation room! Ready to negotiate.',
       {
-        matchedListingId: bestMatch.listingId,
+        matchedListingId: Number(bestMatch.listingId),
         sellerAgentId: bestMatch.sellerAgentId,
-        a2aEndpoint: a2aInfo.a2aEndpoint
+        a2aEndpoint: a2aInfo.a2aEndpoint,
+        negotiationRoomId: room.id,
       }
     );
 
-    // Update BuyRequest status and link to NegotiationRoom
+    // Update BuyRequest status
     await prisma.buyRequest.update({
       where: { id: buyRequestId },
       data: {
         status: 'MATCHED',
-        negotiationRoomId: room.id,
       },
     });
 

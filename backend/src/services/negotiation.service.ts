@@ -4,7 +4,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
-import { io } from "../server";
+import { io } from "../socket";
 
 const prisma = new PrismaClient();
 

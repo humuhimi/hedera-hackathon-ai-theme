@@ -4,9 +4,8 @@ import 'dotenv/config';
 import express, { Request } from 'express';
 import cors from 'cors';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
 import type { IncomingMessage, ClientRequest, ServerResponse } from 'http';
+import { app, httpServer, io } from './socket';
 import authRoutes from './routes/auth.routes.js';
 import agentRoutes from './routes/agent.routes.js';
 import marketplaceRoutes from './routes/marketplace.routes.js';
@@ -17,8 +16,6 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const app = express();
-const httpServer = createServer(app);
 const PORT = process.env.PORT;
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const ELIZAOS_URL = process.env.ELIZAOS_URL;
@@ -110,18 +107,6 @@ app.use('/agents/:agentId/a2a', async (req, res, next) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-
-
-
-// Socket.IO Server (for frontend connections)
-export const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: FRONTEND_URL,
-    credentials: true,
-  },
-});
-
-
 
 // Frontend Socket.IO authentication middleware
 io.use(async (socket, next) => {

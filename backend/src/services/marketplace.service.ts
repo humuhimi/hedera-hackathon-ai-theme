@@ -96,7 +96,7 @@ export async function createListing(params: {
       const a2aInfo = await getAgentA2AEndpoint(Number(params.sellerAgentId));
       const room = await prisma.negotiationRoom.create({
         data: {
-          listingId: Number(listingId.toString()),
+          listingId: listingId.toString(),
           sellerAgentId: Number(params.sellerAgentId),
           sellerA2AEndpoint: a2aInfo.a2aEndpoint,
           status: "WAITING",

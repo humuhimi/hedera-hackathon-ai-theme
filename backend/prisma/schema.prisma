@@ -151,7 +151,7 @@ model BuyRequest {
 // Negotiation Room - Created when Listing is created, used for A2A communication
 model NegotiationRoom {
   id              String   @id @default(uuid())
-  listingId       Int      @unique // One room per listing
+  listingId       String   @unique // One room per listing (blockchain listing ID)
   sellerAgentId   Int      // ERC-8004 Agent ID of seller
   buyerAgentId    Int?     // ERC-8004 Agent ID of buyer (set when matched)
   sellerA2AEndpoint String // Seller's A2A endpoint

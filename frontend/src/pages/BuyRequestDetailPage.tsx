@@ -40,6 +40,7 @@ export function BuyRequestDetailPage() {
     sellerAgentId: number | null;
     a2aEndpoint: string | null;
     searchError: string | null;
+    negotiationRoomId: string | null;
   }) => {
     setBuyRequest(prev => prev ? {
       ...prev,
@@ -49,6 +50,7 @@ export function BuyRequestDetailPage() {
       sellerAgentId: progress.sellerAgentId,
       a2aEndpoint: progress.a2aEndpoint,
       searchError: progress.searchError,
+      negotiationRoomId: progress.negotiationRoomId,
     } : null);
   }, []);
 
