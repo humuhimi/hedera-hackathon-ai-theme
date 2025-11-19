@@ -1,12 +1,13 @@
 /**
  * Marketplace Actions
  * Central export point for all marketplace-related functionality
- *
- * Currently focused on: Listing automation (Seller actions only)
  */
 
 // Seller actions
 export * from './seller';
+
+// Buyer actions
+export * from './buyer';
 
 // Shared types
 export * from './shared';

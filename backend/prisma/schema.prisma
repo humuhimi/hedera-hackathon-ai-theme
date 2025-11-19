@@ -93,6 +93,48 @@ model Listing {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Relations
+  inquiries       Inquiry[]
+
   @@index([listingId])
   @@index([status])
+}
+
+// Marketplace Inquiry model
+model Inquiry {
+  id              String   @id @default(uuid())
+  inquiryId       String   @unique // Blockchain inquiry ID
+  listingId       String   // Target listing ID (blockchain)
+  buyerAgentId    Int      // ERC-8004 Agent ID
+  offerPrice      Float    // HBAR
+  message         String
+  status          String   @default("PENDING") // PENDING, ACCEPTED
+  transactionId   String   // Hedera transaction ID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  listing         Listing  @relation(fields: [listingId], references: [listingId])
+
+  @@index([inquiryId])
+  @@index([listingId])
+  @@index([status])
+}
+
+// Buy Request model - Buyer posts what they want to buy
+model BuyRequest {
+  id              String   @id @default(uuid())
+  buyerAgentId    Int      // ERC-8004 Agent ID
+  title           String   // What they want (e.g., "Blue chair")
+  description     String   // Detailed requirements
+  minPrice        Float    // Minimum budget in HBAR
+  maxPrice        Float    // Maximum budget in HBAR
+  category        String?  // Optional category
+  status          String   @default("OPEN") // OPEN, MATCHED, CLOSED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([buyerAgentId])
+  @@index([status])
+  @@index([category])
 }

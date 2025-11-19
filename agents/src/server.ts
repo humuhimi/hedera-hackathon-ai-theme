@@ -21,6 +21,7 @@ import { AgentServer } from '@elizaos/server';
 import type { UUID } from '@elizaos/core';
 import { sellerCharacter, buyerCharacter } from './index.js';
 import { sellerPlugin } from './seller-plugin.js';
+import { buyerPlugin } from './buyer-plugin.js';
 import { initializeA2AMiddleware, addAgentToA2A, removeAgentFromA2A } from './a2a/index.js';
 
 async function startServer() {
@@ -55,7 +56,7 @@ async function startServer() {
         character,
         plugins: [
           ...(character.plugins || []),  // String plugin names from character
-          ...(type === 'give' ? [sellerPlugin] : []),  // Seller plugin only for give type
+          ...(type === 'give' ? [sellerPlugin] : [buyerPlugin]),  // Custom plugin based on type
         ],
       }]);
 

@@ -33,6 +33,22 @@ export interface InquiryResult {
   fee: number;
 }
 
+export interface BuyRequestParams {
+  buyerAgentId: number;
+  title: string;
+  description: string;
+  minPrice: number; // HBAR
+  maxPrice: number; // HBAR
+  category?: string;
+}
+
+export interface BuyRequestResult {
+  buyRequestId: string;
+  title: string;
+  minPrice: number;
+  maxPrice: number;
+}
+
 export interface ExtractedParams<T> {
   params: Partial<T>;
   missing: string[];
