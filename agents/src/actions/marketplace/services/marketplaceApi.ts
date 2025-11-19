@@ -8,6 +8,8 @@ import {
   InquiryParams,
   ListingResult,
   InquiryResult,
+  BuyRequestParams,
+  BuyRequestResult,
   MarketplaceError,
 } from '../shared/types';
 
@@ -93,6 +95,59 @@ export class MarketplaceApiService {
 
       return await response.json();
     } catch (error: any) {
+      if (error.code) throw error; // Already a MarketplaceError
+      throw this.createError(
+        `Network error: ${error.message}`,
+        'NETWORK_ERROR',
+        error
+      );
+    }
+  }
+
+  /**
+   * Create a buy request (what buyer wants to purchase)
+   */
+  async createBuyRequest(params: BuyRequestParams): Promise<BuyRequestResult> {
+    console.log('\n╭──────────────────────────────────────────────────────╮');
+    console.log('│  🌐 MARKETPLACE API: createBuyRequest()             │');
+    console.log('╰──────────────────────────────────────────────────────╯');
+    console.log('🎯 Target URL:', `${BACKEND_URL}/api/marketplace/buy-requests`);
+    console.log('📤 Request method: POST');
+    console.log('📦 Payload:', JSON.stringify(params, null, 2), '\n');
+
+    try {
+      console.log('⏳ Sending HTTP request...');
+      const response = await fetch(`${BACKEND_URL}/api/marketplace/buy-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+
+      console.log('📨 Response received:');
+      console.log('   Status:', response.status, response.statusText);
+      console.log('   OK:', response.ok);
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.log('❌ Backend returned error:', JSON.stringify(error, null, 2));
+        throw this.createError(
+          error.error || 'Failed to create buy request',
+          'CREATE_BUY_REQUEST_FAILED',
+          error
+        );
+      }
+
+      const result = await response.json();
+      console.log('✅ Success! Result:', JSON.stringify(result, null, 2), '\n');
+
+      return result;
+    } catch (error: any) {
+      console.log('🔴 Error caught in createBuyRequest:');
+      console.log('   Type:', error.constructor.name);
+      console.log('   Message:', error.message);
+      console.log('   Code:', error.code || 'N/A');
+      console.log('');
+
       if (error.code) throw error; // Already a MarketplaceError
       throw this.createError(
         `Network error: ${error.message}`,

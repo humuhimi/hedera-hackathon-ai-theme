@@ -1,6 +1,6 @@
 /**
- * CREATE_LISTING Action (Seller)
- * Allows seller agents to create marketplace listings
+ * CREATE_BUY_REQUEST Action (Buyer)
+ * Allows buyer agents to post what they want to buy
  */
 
 import {
@@ -12,16 +12,16 @@ import {
 } from '@elizaos/core';
 import { marketplaceApi } from '../services/marketplaceApi';
 import { paramExtractor } from '../services/paramExtractor';
-import { ListingParams } from '../shared/types';
+import { BuyRequestParams } from '../shared/types';
 
-export const createListingAction: Action = {
-  name: 'LIST_ITEM',
-  similes: ['CREATE_LISTING', 'SELL_ITEM', 'CREATE_SALE', 'POST_LISTING'],
-  description: 'Create a new listing on the Hedera Marketplace. Works in any language - the AI will understand and extract listing details (title, prices) automatically.',
+export const createBuyRequestAction: Action = {
+  name: 'CREATE_BUY_REQUEST',
+  similes: ['POST_BUY_REQUEST', 'WANT_TO_BUY', 'LOOKING_FOR', 'SEARCH_ITEM'],
+  description: 'Create a buy request to post what you want to purchase. Works in any language - the AI will understand and extract request details (item, price range) automatically.',
 
   validate: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
     // Language-independent: check if conversation is in progress or has numbers (price info)
-    const isInProgress = (state as any)?.listingInProgress === true;
+    const isInProgress = (state as any)?.buyRequestInProgress === true;
     const hasNumbers = /\d+/.test(message.content.text || '');
     const hasContent = (message.content.text || '').trim().length > 2;
 
@@ -32,23 +32,23 @@ export const createListingAction: Action = {
     runtime: IAgentRuntime,
     message: Memory,
     state: State,
-    options: any,
+    _options: any,
     callback: HandlerCallback
   ) => {
     console.log('\n╔════════════════════════════════════════════════════════╗');
-    console.log('║     🏪 LIST_ITEM ACTION HANDLER STARTED                ║');
+    console.log('║     🛒 CREATE_BUY_REQUEST ACTION HANDLER STARTED      ║');
     console.log('╚════════════════════════════════════════════════════════╝');
     console.log('⏰ Timestamp:', new Date().toISOString());
     console.log('📝 User Message:', message.content.text);
 
     try {
-      // Mark listing conversation as in progress
+      // Mark buy request conversation as in progress
       if (state) {
-        (state as any).listingInProgress = true;
+        (state as any).buyRequestInProgress = true;
       }
 
-      // Try to extract basic parameters - if missing, AI will ask naturally
-      const extraction = await paramExtractor.extractListingParams(message, runtime, state);
+      // Try to extract parameters - if missing, AI will ask naturally
+      const extraction = await paramExtractor.extractBuyRequestParams(message, runtime, state);
 
       if (extraction.missing.length > 0) {
         console.log('⚠️  Missing params:', extraction.missing.join(', '));
@@ -56,28 +56,28 @@ export const createListingAction: Action = {
         return; // Let AI ask for missing info
       }
 
-      // All params present - create the listing
-      console.log('✅ All params present. Creating listing...\n');
+      // All params present - create the buy request
+      console.log('✅ All params present. Creating buy request...\n');
 
-      const result = await marketplaceApi.createListing(extraction.params as ListingParams);
+      const result = await marketplaceApi.createBuyRequest(extraction.params as BuyRequestParams);
 
-      console.log('✅ Listing created!');
-      console.log('   ID:', result.listingId);
-      console.log('   TX:', result.transactionId);
+      console.log('✅ Buy request created!');
+      console.log('   ID:', result.buyRequestId);
+      console.log('   Title:', result.title);
 
       if (!process.env.FRONTEND_URL) {
         throw new Error('FRONTEND_URL environment variable is required');
       }
-      const listingUrl = `${process.env.FRONTEND_URL}/listing/${result.listingId}`;
+      const buyRequestUrl = `${process.env.FRONTEND_URL}/buy-request/${result.buyRequestId}`;
 
       // Clear the in-progress flag after success
       if (state) {
-        (state as any).listingInProgress = false;
+        (state as any).buyRequestInProgress = false;
       }
 
       await callback({
-        text: `✅ Listing created!\n\n📦 ${extraction.params.title}\nID: ${result.listingId}\nPrice: ${extraction.params.basePrice}-${extraction.params.expectedPrice} HBAR\n\n🔗 ${listingUrl}`,
-        action: 'CREATE_LISTING',
+        text: `✅ Buy request posted!\n\n🛒 ${extraction.params.title}\nBudget: ${extraction.params.minPrice}-${extraction.params.maxPrice} HBAR\nID: ${result.buyRequestId}\n\n🔗 ${buyRequestUrl}`,
+        action: 'CREATE_BUY_REQUEST',
       });
 
       console.log('✅ Success!\n');
@@ -86,7 +86,7 @@ export const createListingAction: Action = {
 
       // Clear the in-progress flag on error
       if (state) {
-        (state as any).listingInProgress = false;
+        (state as any).buyRequestInProgress = false;
       }
 
       await callback({
@@ -100,13 +100,13 @@ export const createListingAction: Action = {
     [
       {
         name: '{{user1}}',
-        content: { text: 'List my vintage camera for 50 HBAR' },
+        content: { text: 'I want to buy a blue chair for 0.5 to 3 HBAR' },
       },
       {
         name: '{{agentName}}',
         content: {
-          text: '✅ Listing created! ID: 1, Price: 50 HBAR',
-          action: 'CREATE_LISTING',
+          text: '✅ Buy request posted! Blue chair, Budget: 0.5-3 HBAR',
+          action: 'CREATE_BUY_REQUEST',
         },
       },
     ],
@@ -114,14 +114,14 @@ export const createListingAction: Action = {
       {
         name: '{{user1}}',
         content: {
-          text: 'Sell my laptop, base price 100, expected 150 HBAR',
+          text: '青い椅子が欲しい、予算は50から100 HBAR',
         },
       },
       {
         name: '{{agentName}}',
         content: {
-          text: '✅ Listing created! ID: 2, Price: 100-150 HBAR',
-          action: 'CREATE_LISTING',
+          text: '✅ Buy request posted! 青い椅子, Budget: 50-100 HBAR',
+          action: 'CREATE_BUY_REQUEST',
         },
       },
     ],

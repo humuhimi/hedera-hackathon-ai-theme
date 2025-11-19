@@ -5,7 +5,7 @@
  */
 
 import { IAgentRuntime, Memory } from '@elizaos/core';
-import { ListingParams, InquiryParams, ExtractedParams } from '../shared/types';
+import { ListingParams, InquiryParams, BuyRequestParams, ExtractedParams } from '../shared/types';
 import { translator } from './translator';
 
 export class ParamExtractorService {
@@ -99,6 +99,54 @@ export class ParamExtractorService {
       params,
       missing,
       confidence: this.calculateConfidence(params, missing),
+    };
+  }
+
+  /**
+   * Extract buy request parameters using AI (language-independent)
+   */
+  async extractBuyRequestParams(
+    message: Memory,
+    runtime: IAgentRuntime,
+    state?: any
+  ): Promise<ExtractedParams<BuyRequestParams>> {
+    console.log('\n🔍 PARAM EXTRACTOR (AI-powered) - BuyRequest');
+    console.log('📝 Original:', message.content.text);
+
+    const originalText = message.content.text || '';
+    const conversationHistory = state?.text;
+
+    // Use AI to extract structured info (reusing translator for buy requests)
+    // BuyRequest uses same fields as Listing (title, description, basePrice as minPrice, expectedPrice as maxPrice)
+    const aiExtracted = await translator.extractListingInfo(originalText, conversationHistory);
+
+    console.log('🤖 AI Extracted:', JSON.stringify(aiExtracted, null, 2));
+
+    const buyerAgentId = this.getAgentId(runtime, 'buyer');
+
+    const params: Partial<BuyRequestParams> = {
+      buyerAgentId,
+      title: aiExtracted.title,
+      description: aiExtracted.description || aiExtracted.title,
+      minPrice: aiExtracted.basePrice,
+      maxPrice: aiExtracted.expectedPrice,
+    };
+
+    const missing = this.findMissingParams(params, [
+      'title',
+      'minPrice',
+      'maxPrice',
+    ]);
+
+    const confidence = this.calculateConfidence(params, missing);
+
+    console.log('📊 Result:', missing.length ? `Missing: ${missing.join(', ')}` : '✅ Complete');
+    console.log('');
+
+    return {
+      params,
+      missing,
+      confidence,
     };
   }
 
