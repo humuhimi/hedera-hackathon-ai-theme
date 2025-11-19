@@ -1,8 +1,35 @@
 import express from 'express';
 import { agentService } from '../services/agent.service.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
+import { getAgentA2AEndpoint } from '../services/marketplace.service.js';
 
 const router = express.Router();
+
+/**
+ * Get A2A endpoint for an agent from ERC-8004 registry
+ * GET /agents/erc8004/:agentId/a2a
+ * Public API (no authentication required)
+ *
+ * Note: Uses erc8004AgentId (on-chain ID), not internal agent ID
+ */
+router.get('/erc8004/:agentId/a2a', async (req, res) => {
+  try {
+    const agentId = parseInt(req.params.agentId);
+
+    if (isNaN(agentId)) {
+      return res.status(400).json({ error: "Invalid agent ID" });
+    }
+
+    const a2aInfo = await getAgentA2AEndpoint(agentId);
+    res.json(a2aInfo);
+  } catch (error: any) {
+    console.error(`Error in GET /agents/erc8004/${req.params.agentId}/a2a:`, error);
+    if (error.message?.includes('not found') || error.message?.includes('No A2A')) {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message || "Failed to get agent A2A endpoint" });
+  }
+});
 
 /**
  * Create a new agent

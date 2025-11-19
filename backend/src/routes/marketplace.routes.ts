@@ -9,6 +9,33 @@ import * as buyRequestService from "../services/buyRequest.service";
 const router = express.Router();
 
 /**
+ * GET /api/marketplace/listings
+ * Get all listings with optional filters
+ */
+router.get("/listings", async (req, res) => {
+  try {
+    const { status, sellerAgentId, search, limit, offset } = req.query;
+
+    const listings = await marketplaceService.getListings({
+      status: status as string | undefined,
+      sellerAgentId: sellerAgentId ? parseInt(sellerAgentId as string) : undefined,
+      search: search as string | undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      offset: offset ? parseInt(offset as string) : undefined,
+    });
+
+    res.json({
+      success: true,
+      count: listings.length,
+      listings,
+    });
+  } catch (error: any) {
+    console.error("Error in GET /api/marketplace/listings:", error);
+    res.status(500).json({ error: error.message || "Failed to get listings" });
+  }
+});
+
+/**
  * POST /api/marketplace/listings
  * Create a new listing
  */
@@ -50,17 +77,22 @@ router.post("/listings", async (req, res) => {
 
 /**
  * GET /api/marketplace/listings/:id
- * Get listing details
+ * Get listing details (with optional on-chain verification)
  */
 router.get("/listings/:id", async (req, res) => {
   try {
     const listingId = parseInt(req.params.id);
+    const verify = req.query.verify === 'true';
 
     if (isNaN(listingId)) {
       return res.status(400).json({ error: "Invalid listing ID" });
     }
 
-    const listing = await marketplaceService.getListing(listingId);
+    // Use verified endpoint if requested
+    const listing = verify
+      ? await marketplaceService.getListingVerified(listingId)
+      : await marketplaceService.getListing(listingId);
+
     res.json(listing);
   } catch (error: any) {
     console.error(`Error in GET /api/marketplace/listings/${req.params.id}:`, error);

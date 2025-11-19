@@ -134,6 +134,14 @@ model BuyRequest {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Search progress fields (backend-driven)
+  searchStep      String   @default("idle") // idle, searching, found, verifying, verified, contacting, contacted, negotiating, complete, error, no_results
+  searchMessage   String?  // Current status message
+  matchedListingId Int?    // The listing that was matched
+  sellerAgentId   Int?     // The seller agent ID
+  a2aEndpoint     String?  // Resolved A2A endpoint
+  searchError     String?  // Error message if search failed
+
   @@index([buyerAgentId])
   @@index([status])
   @@index([category])

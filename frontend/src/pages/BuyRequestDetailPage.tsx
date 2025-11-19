@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { StepIndicator, getStepNumber } from '../components/buyRequest';
+import { useBuyRequestWebSocket } from '../hooks/useBuyRequestWebSocket';
 
 interface BuyRequest {
   id: string;
@@ -12,6 +14,13 @@ interface BuyRequest {
   category: string | null;
   status: string;
   createdAt: string;
+  // Search progress fields
+  searchStep: string;
+  searchMessage: string | null;
+  matchedListingId: number | null;
+  sellerAgentId: number | null;
+  a2aEndpoint: string | null;
+  searchError: string | null;
 }
 
 export function BuyRequestDetailPage() {
@@ -20,6 +29,33 @@ export function BuyRequestDetailPage() {
   const [buyRequest, setBuyRequest] = useState<BuyRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle WebSocket progress updates
+  const handleProgress = useCallback((progress: {
+    buyRequestId: string;
+    searchStep: string;
+    searchMessage: string | null;
+    matchedListingId: number | null;
+    sellerAgentId: number | null;
+    a2aEndpoint: string | null;
+    searchError: string | null;
+  }) => {
+    setBuyRequest(prev => prev ? {
+      ...prev,
+      searchStep: progress.searchStep,
+      searchMessage: progress.searchMessage,
+      matchedListingId: progress.matchedListingId,
+      sellerAgentId: progress.sellerAgentId,
+      a2aEndpoint: progress.a2aEndpoint,
+      searchError: progress.searchError,
+    } : null);
+  }, []);
+
+  // Connect to WebSocket for real-time progress updates
+  useBuyRequestWebSocket({
+    buyRequestId: id,
+    onProgress: handleProgress,
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -176,20 +212,98 @@ export function BuyRequestDetailPage() {
           </div>
         </div>
 
-        {/* Success Message */}
-        <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <div className="text-green-600 text-2xl">✅</div>
-            <div>
-              <h3 className="text-green-900 font-semibold mb-1">
-                Buy Request Posted Successfully!
-              </h3>
-              <p className="text-green-700 text-sm">
-                Your buy request has been saved and is waiting to be matched
-                with available listings. You will be notified when matching
-                items are found.
-              </p>
+        {/* Agent Search Progress Section */}
+        <div className="mt-6 bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+            <h3 className="text-white font-semibold">Agent Auto-Search Progress</h3>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Progress Steps */}
+            <div className="space-y-4">
+              <StepIndicator
+                step={1}
+                currentStep={getStepNumber(buyRequest.searchStep as any)}
+                label="Search Listings"
+                isError={buyRequest.searchStep === 'error' || buyRequest.searchStep === 'no_results'}
+              />
+              <StepIndicator
+                step={2}
+                currentStep={getStepNumber(buyRequest.searchStep as any)}
+                label="Verify On-Chain"
+                isError={buyRequest.searchStep === 'error' && getStepNumber(buyRequest.searchStep as any) === 2}
+              />
+              <StepIndicator
+                step={3}
+                currentStep={getStepNumber(buyRequest.searchStep as any)}
+                label="Get A2A Endpoint"
+                isError={buyRequest.searchStep === 'error' && getStepNumber(buyRequest.searchStep as any) === 3}
+              />
+              <StepIndicator
+                step={4}
+                currentStep={getStepNumber(buyRequest.searchStep as any)}
+                label="Negotiate with Seller"
+                isError={buyRequest.searchStep === 'error' && getStepNumber(buyRequest.searchStep as any) === 4}
+              />
             </div>
+
+            {/* Status Message */}
+            {buyRequest.searchMessage && (
+              <div className={`
+                p-4 rounded-lg
+                ${buyRequest.searchStep === 'error' ? 'bg-red-50 border border-red-200' : ''}
+                ${buyRequest.searchStep === 'no_results' ? 'bg-yellow-50 border border-yellow-200' : ''}
+                ${buyRequest.searchStep === 'complete' ? 'bg-green-50 border border-green-200' : ''}
+                ${!['error', 'no_results', 'complete'].includes(buyRequest.searchStep) ? 'bg-blue-50 border border-blue-200' : ''}
+              `}>
+                <p className={`
+                  text-sm font-medium
+                  ${buyRequest.searchStep === 'error' ? 'text-red-700' : ''}
+                  ${buyRequest.searchStep === 'no_results' ? 'text-yellow-700' : ''}
+                  ${buyRequest.searchStep === 'complete' ? 'text-green-700' : ''}
+                  ${!['error', 'no_results', 'complete'].includes(buyRequest.searchStep) ? 'text-blue-700' : ''}
+                `}>
+                  {buyRequest.searchMessage}
+                </p>
+                {buyRequest.searchError && (
+                  <p className="text-sm text-red-600 mt-1">{buyRequest.searchError}</p>
+                )}
+              </div>
+            )}
+
+            {/* Matched Listing Info */}
+            {buyRequest.matchedListingId && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Matched Listing</h4>
+                <p className="text-sm text-gray-600">Listing #{buyRequest.matchedListingId}</p>
+                {buyRequest.sellerAgentId && (
+                  <p className="text-sm text-gray-600">Seller Agent #{buyRequest.sellerAgentId}</p>
+                )}
+              </div>
+            )}
+
+            {/* A2A Endpoint Info */}
+            {buyRequest.a2aEndpoint && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Seller Agent A2A Endpoint</h4>
+                <code className="block p-2 bg-gray-100 rounded text-xs text-gray-700 break-all">
+                  {buyRequest.a2aEndpoint}
+                </code>
+              </div>
+            )}
+
+            {/* Action Button */}
+            {buyRequest.searchStep === 'complete' && (
+              <button
+                onClick={() => {
+                  // TODO: Navigate to conversation page
+                  alert('View Conversation - Coming soon!');
+                }}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors"
+              >
+                View Conversation
+              </button>
+            )}
           </div>
         </div>
       </div>

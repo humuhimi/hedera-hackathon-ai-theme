@@ -112,7 +112,7 @@ app.get('/health', (req, res) => {
 
 
 // Socket.IO Server (for frontend connections)
-const io = new SocketIOServer(httpServer, {
+export const io = new SocketIOServer(httpServer, {
   cors: {
     origin: FRONTEND_URL,
     credentials: true,
@@ -230,6 +230,18 @@ io.on('connection', (socket) => {
   socket.on('agent:leave', ({ channelId }) => {
     socket.leave(`channel:${channelId}`);
     console.log(`👋 User ${socket.data.userId} left channel ${channelId}`);
+  });
+
+  // Join buyRequest room to receive progress updates
+  socket.on('buyRequest:join', ({ buyRequestId }) => {
+    socket.join(`buyRequest:${buyRequestId}`);
+    console.log(`📦 User ${socket.data.userId} joined buyRequest ${buyRequestId}`);
+  });
+
+  // Leave buyRequest room
+  socket.on('buyRequest:leave', ({ buyRequestId }) => {
+    socket.leave(`buyRequest:${buyRequestId}`);
+    console.log(`👋 User ${socket.data.userId} left buyRequest ${buyRequestId}`);
   });
 
   socket.on('disconnect', () => {
