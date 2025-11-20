@@ -7,6 +7,7 @@ import { AgentDetailPage } from './pages/AgentDetailPage'
 import { ListingDetailPage } from './pages/ListingDetailPage'
 import { BuyRequestDetailPage } from './pages/BuyRequestDetailPage'
 import { NegotiationPage } from './pages/NegotiationPage'
+import { MyActivityPage } from './pages/MyActivityPage'
 import { Layout } from './components/layout/Layout'
 import { PrivateRoute } from './components/layout/PrivateRoute'
 
@@ -109,6 +110,18 @@ function App() {
           element={
             <PrivateRoute>
               <NegotiationPage />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Private route - My Activity page */}
+        <Route
+          path="/my-activity"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <MyActivityPage />
+              </Layout>
             </PrivateRoute>
           }
         />

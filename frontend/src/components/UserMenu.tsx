@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export const UserMenu = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
   if (!user) return null;
@@ -45,6 +47,17 @@ export const UserMenu = () => {
               >
                 <span>📊</span>
                 <span>Dashboard</span>
+              </button>
+
+              <button
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors flex items-center space-x-2"
+                onClick={() => {
+                  navigate('/my-activity');
+                  setIsOpen(false);
+                }}
+              >
+                <span>📦</span>
+                <span>My Activity</span>
               </button>
 
               <button
