@@ -91,8 +91,18 @@ app.use('/agents/:agentId/a2a', async (req, res, next) => {
       const erc8004AgentId = expressReq.params.agentId;
       console.log(`🔄 Proxying A2A: erc8004#${erc8004AgentId} -> eliza#${elizaAgentId}`);
     },
-    proxyRes: (proxyRes: IncomingMessage): void => {
+    proxyRes: (proxyRes: IncomingMessage, req: IncomingMessage, res: ServerResponse): void => {
       console.log(`✅ A2A Response: ${proxyRes.statusCode}`);
+      console.log(`   Headers:`, JSON.stringify(proxyRes.headers));
+
+      // Log response body for debugging
+      let body = '';
+      proxyRes.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      proxyRes.on('end', () => {
+        console.log(`   Body preview: ${body.substring(0, 200)}${body.length > 200 ? '...' : ''}`);
+      });
     },
     error: (err: Error, _req: IncomingMessage, res: ServerResponse): void => {
       console.error('❌ A2A Proxy Error:', err.message);

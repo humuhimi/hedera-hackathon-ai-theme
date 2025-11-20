@@ -6,6 +6,8 @@
 import { PrismaClient } from "@prisma/client";
 import { getListings, getAgentA2AEndpoint } from "./marketplace.service";
 import { semanticSearch } from "./semanticSearch.service";
+import { sendNegotiationGreeting } from "./a2a.service";
+import { sendMessage } from "./negotiation.service";
 import { io } from "../socket";
 
 const prisma = new PrismaClient();
@@ -175,7 +177,7 @@ async function processAutoSearch(
     await updateSearchProgress(
       buyRequestId,
       'joined_room',
-      'Joined negotiation room! Ready to negotiate.',
+      'Joined negotiation room! Initiating negotiation...',
       {
         matchedListingId: Number(bestMatch.listingId),
         sellerAgentId: bestMatch.sellerAgentId,
@@ -184,8 +186,74 @@ async function processAutoSearch(
       }
     );
 
+    // Step 5: Send initial negotiation greeting via A2A
+    try {
+      console.log(`🤝 Initiating negotiation for BuyRequest ${buyRequestId}`);
+
+      const a2aResponse = await sendNegotiationGreeting({
+        sellerA2AEndpoint: a2aInfo.a2aEndpoint,
+        buyRequest: {
+          id: buyRequestId,
+          title: buyRequest.title,
+          description: buyRequest.description,
+          minPrice: buyRequest.minPrice,
+          maxPrice: buyRequest.maxPrice,
+        },
+        listingId: Number(bestMatch.listingId),
+        negotiationRoomId: room.id,
+      });
+
+      // Log buyer's greeting message to negotiation room
+      const greetingText = `Hello! I'm interested in your listing #${bestMatch.listingId}.
+
+**What I'm looking for:**
+${buyRequest.title}
+
+**Details:**
+${buyRequest.description}
+
+**Budget:**
+${buyRequest.minPrice}-${buyRequest.maxPrice} HBAR
+
+I found your listing through semantic search and would like to discuss the details. Are you available to negotiate?`;
+
+      await sendMessage({
+        roomId: room.id,
+        senderAgentId: buyerAgentId,
+        content: greetingText,
+        messageType: 'greeting',
+        metadata: {
+          a2aMessageId: `greeting-${buyRequestId}`,
+          source: 'auto-search',
+        },
+      });
+
+      // Log seller's response to negotiation room
+      const sellerResponseText = a2aResponse.result.parts[0]?.text;
+      if (sellerResponseText) {
+        await sendMessage({
+          roomId: room.id,
+          senderAgentId: bestMatch.sellerAgentId,
+          content: sellerResponseText,
+          messageType: 'response',
+          metadata: {
+            a2aMessageId: a2aResponse.result.messageId,
+            source: 'a2a-response',
+          },
+        });
+      }
+
+      console.log(`✅ Negotiation initiated successfully`);
+    } catch (error: any) {
+      console.error(`⚠️  Failed to send A2A greeting, but room is ready:`, error?.message || error);
+      console.error(`   Error type: ${error?.name}`);
+      console.error(`   Seller endpoint was: ${a2aInfo.a2aEndpoint}`);
+      // Don't fail the whole process if A2A message fails
+      // The room is already created and users can still manually negotiate
+    }
+
     // Note: Step 5 "Complete Negotiation" will be triggered externally
-    // when the negotiation actually completes. For now, auto-search stops here.
+    // when the negotiation actually completes.
 
     // Update BuyRequest status
     await prisma.buyRequest.update({

@@ -425,20 +425,41 @@ export async function getAgentA2AEndpoint(agentId: number) {
 
     const metadata = await metadataResponse.json();
 
-    // Find A2A endpoint in endpoints array
-    const a2aEndpoint = metadata.endpoints?.find(
+    // Find A2A endpoint in endpoints array (this is the Agent Card URL)
+    const agentCardEntry = metadata.endpoints?.find(
       (ep: { name: string; endpoint: string }) => ep.name === 'a2a'
     );
 
-    if (!a2aEndpoint) {
-      throw new Error(`No A2A endpoint found for agent ${agentId}`);
+    if (!agentCardEntry) {
+      throw new Error(`No A2A agent card URL found for agent ${agentId}`);
     }
+
+    // Fetch the Agent Card to get the actual messaging endpoint
+    console.log(`📋 Fetching Agent Card from: ${agentCardEntry.endpoint}`);
+    const agentCardResponse = await fetch(agentCardEntry.endpoint);
+    if (!agentCardResponse.ok) {
+      throw new Error(`Failed to fetch agent card from ${agentCardEntry.endpoint}`);
+    }
+
+    const agentCard = await agentCardResponse.json();
+
+    // In A2A v0.3.0, the messaging endpoint is in the "url" field
+    let messagingEndpoint = agentCard.url;
+
+    if (!messagingEndpoint) {
+      throw new Error(`No url (messaging endpoint) found in agent card for agent ${agentId}`);
+    }
+
+    // Replace backend proxy (port 4000) with direct ElizaOS access (port 3333) for agent-to-agent communication
+    messagingEndpoint = messagingEndpoint.replace(':4000', ':3333');
+
+    console.log(`✅ Resolved A2A messaging endpoint: ${messagingEndpoint}`);
 
     return {
       agentId,
       tokenURI,
-      a2aEndpoint: a2aEndpoint.endpoint,
-      a2aVersion: a2aEndpoint.version || 'unknown',
+      a2aEndpoint: messagingEndpoint,
+      a2aVersion: agentCardEntry.version || 'unknown',
       metadata: {
         name: metadata.name,
         description: metadata.description,
