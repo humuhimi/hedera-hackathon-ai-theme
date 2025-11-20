@@ -98,6 +98,96 @@ export async function sendA2AMessage(params: {
 }
 
 /**
+ * Decision criteria detection for negotiation
+ * Analyzes message content to detect if a decision has been reached
+ */
+export function detectDecisionCriteria(message: string): {
+  hasDecision: boolean;
+  decisionType: 'accepted' | 'rejected' | 'price_agreed' | 'counter_offer' | 'none';
+  agreedPrice?: number;
+} {
+  const lowerMsg = message.toLowerCase();
+
+  // Check for explicit acceptance
+  const acceptanceKeywords = ['deal', 'accept', 'agree', 'sold', 'purchase', "let's proceed", "i'll buy", "i'll take it", 'okay', 'sounds good'];
+  const hasAcceptance = acceptanceKeywords.some(keyword => lowerMsg.includes(keyword));
+
+  // Check for explicit rejection
+  const rejectionKeywords = ['reject', 'decline', 'not interested', 'too expensive', 'cannot accept', "can't accept", 'no deal', 'sorry'];
+  const hasRejection = rejectionKeywords.some(keyword => lowerMsg.includes(keyword));
+
+  // Check for price agreement pattern (e.g., "2 HBAR", "2.5 HBAR", "2 hbar")
+  const priceMatch = message.match(/(\d+(?:\.\d+)?)\s*(?:HBAR|hbar)/i);
+  const agreedPrice = priceMatch ? parseFloat(priceMatch[1]) : undefined;
+
+  // Check for counter offer
+  const counterOfferKeywords = ['counter', 'how about', 'what about', 'could you do', 'would you accept', 'can you do'];
+  const hasCounterOffer = counterOfferKeywords.some(keyword => lowerMsg.includes(keyword));
+
+  if (hasAcceptance && agreedPrice) {
+    return { hasDecision: true, decisionType: 'price_agreed', agreedPrice };
+  }
+  if (hasAcceptance) {
+    return { hasDecision: true, decisionType: 'accepted' };
+  }
+  if (hasRejection) {
+    return { hasDecision: true, decisionType: 'rejected' };
+  }
+  if (hasCounterOffer) {
+    return { hasDecision: false, decisionType: 'counter_offer' };
+  }
+
+  return { hasDecision: false, decisionType: 'none' };
+}
+
+/**
+ * Check if both agents' requirements are satisfied
+ * Buyer: proposed price <= maxPrice
+ * Seller: proposed price >= expectedPrice (or at minimum acceptable level)
+ */
+export function checkMutualSatisfaction(params: {
+  proposedPrice: number;
+  buyerBudget: { min: number; max: number };
+  sellerPrice: { base: number; expected: number };
+}): {
+  isSatisfied: boolean;
+  reason: string;
+} {
+  const { proposedPrice, buyerBudget, sellerPrice } = params;
+
+  // Buyer's requirement: price must be within budget
+  const buyerSatisfied = proposedPrice >= buyerBudget.min && proposedPrice <= buyerBudget.max;
+
+  // Seller's requirement: price should be at or above expected price
+  // Or at least within reasonable range (90% of expected price)
+  const minAcceptablePrice = sellerPrice.expected * 0.9;
+  const sellerSatisfied = proposedPrice >= minAcceptablePrice;
+
+  if (buyerSatisfied && sellerSatisfied) {
+    return {
+      isSatisfied: true,
+      reason: `Price ${proposedPrice} HBAR satisfies both parties: within buyer's budget (${buyerBudget.min}-${buyerBudget.max} HBAR) and meets seller's expectation (expected: ${sellerPrice.expected} HBAR)`
+    };
+  }
+
+  if (!buyerSatisfied) {
+    return {
+      isSatisfied: false,
+      reason: `Price ${proposedPrice} HBAR exceeds buyer's maximum budget of ${buyerBudget.max} HBAR`
+    };
+  }
+
+  if (!sellerSatisfied) {
+    return {
+      isSatisfied: false,
+      reason: `Price ${proposedPrice} HBAR is below seller's minimum acceptable price of ${minAcceptablePrice.toFixed(2)} HBAR`
+    };
+  }
+
+  return { isSatisfied: false, reason: 'Unknown constraint violation' };
+}
+
+/**
  * Send initial negotiation greeting from buyer to seller
  */
 export async function sendNegotiationGreeting(params: {
@@ -109,21 +199,35 @@ export async function sendNegotiationGreeting(params: {
     minPrice: number;
     maxPrice: number;
   };
-  listingId: number;
+  listing: {
+    listingId: string | number;
+    title: string;
+    description: string;
+    basePrice: number;
+    expectedPrice: number;
+  };
   negotiationRoomId: string;
 }): Promise<A2AResponse> {
-  const greetingText = `Hello! I'm interested in your listing #${params.listingId}.
+  const greetingText = `NEGOTIATION CONTEXT:
+You are negotiating about Listing #${params.listing.listingId}:
+- Title: ${params.listing.title}
+- Description: ${params.listing.description}
+- Your asking price: ${params.listing.basePrice} HBAR (expected: ${params.listing.expectedPrice} HBAR)
 
-**What I'm looking for:**
-${params.buyRequest.title}
+BUYER'S REQUEST:
+- Looking for: ${params.buyRequest.title}
+- Details: ${params.buyRequest.description}
+- Budget: ${params.buyRequest.minPrice}-${params.buyRequest.maxPrice} HBAR
 
-**Details:**
-${params.buyRequest.description}
+---
 
-**Budget:**
-${params.buyRequest.minPrice}-${params.buyRequest.maxPrice} HBAR
+Hello! I'm interested in your listing #${params.listing.listingId} (${params.listing.title}).
 
-I found your listing through semantic search and would like to discuss the details. Are you available to negotiate?
+I'm looking for "${params.buyRequest.title}" and your listing seems like a good match. My budget is ${params.buyRequest.minPrice}-${params.buyRequest.maxPrice} HBAR.
+
+Your asking price is ${params.listing.basePrice} HBAR. Can we negotiate a price that works for both of us?
+
+Please make a concrete proposal or counteroffer so we can reach an agreement.
 
 Negotiation Room: ${params.negotiationRoomId}`;
 
@@ -131,5 +235,37 @@ Negotiation Room: ${params.negotiationRoomId}`;
     toAgentUrl: params.sellerA2AEndpoint,
     messageText: greetingText,
     messageId: `greeting-${params.buyRequest.id}`,
+  });
+}
+
+/**
+ * Send negotiation response from buyer to seller
+ */
+export async function sendNegotiationResponse(params: {
+  targetAgentEndpoint: string;
+  messageText: string;
+  negotiationContext: {
+    listingId: string | number;
+    listingTitle: string;
+    currentPrice: number;
+    budget: { min: number; max: number };
+  };
+  messageId: string;
+}): Promise<A2AResponse> {
+  const contextualMessage = `NEGOTIATION CONTEXT:
+Listing #${params.negotiationContext.listingId}: ${params.negotiationContext.listingTitle}
+Current price: ${params.negotiationContext.currentPrice} HBAR
+Your budget: ${params.negotiationContext.budget.min}-${params.negotiationContext.budget.max} HBAR
+
+IMPORTANT: Please make a concrete decision (accept, reject, or counter-offer with specific price).
+
+---
+
+${params.messageText}`;
+
+  return sendA2AMessage({
+    toAgentUrl: params.targetAgentEndpoint,
+    messageText: contextualMessage,
+    messageId: params.messageId,
   });
 }

@@ -6,7 +6,7 @@
 import { PrismaClient } from "@prisma/client";
 import { getListings, getAgentA2AEndpoint } from "./marketplace.service";
 import { semanticSearch } from "./semanticSearch.service";
-import { sendNegotiationGreeting } from "./a2a.service";
+import { sendNegotiationGreeting, sendNegotiationResponse, detectDecisionCriteria, checkMutualSatisfaction } from "./a2a.service";
 import { sendMessage } from "./negotiation.service";
 import { io } from "../socket";
 
@@ -49,6 +49,277 @@ async function updateSearchProgress(
     searchError: extra?.searchError ?? updated.searchError,
     negotiationRoomId: extra?.negotiationRoomId ?? updated.negotiationRoomId,
   });
+}
+
+/**
+ * Continue multi-round negotiation between buyer and seller agents
+ * Uses OpenAI to generate intelligent buyer responses based on context
+ */
+async function continueNegotiation(params: {
+  roomId: string;
+  buyerAgentId: number;
+  sellerAgentId: number;
+  buyerA2AEndpoint: string;
+  sellerA2AEndpoint: string;
+  buyRequest: {
+    id: string;
+    title: string;
+    description: string;
+    minPrice: number;
+    maxPrice: number;
+  };
+  listing: {
+    listingId: string | number;
+    title: string;
+    description: string;
+    basePrice: number;
+    expectedPrice: number;
+  };
+  conversationHistory: Array<{ role: 'buyer' | 'seller'; content: string }>;
+  maxRounds?: number;
+}) {
+  const MAX_ROUNDS = params.maxRounds || 20;
+  let roundCount = 0;
+  let currentHistory = [...params.conversationHistory];
+
+  console.log(`🔄 Starting multi-round negotiation (max ${MAX_ROUNDS} rounds)`);
+
+  while (roundCount < MAX_ROUNDS) {
+    roundCount++;
+    console.log(`\n🔄 Round ${roundCount}/${MAX_ROUNDS}`);
+
+    // Get the last message from seller
+    const lastSellerMessage = currentHistory[currentHistory.length - 1];
+    if (lastSellerMessage.role !== 'seller') {
+      console.log(`⚠️  Last message is not from seller, ending negotiation`);
+      break;
+    }
+
+    // Check if seller made a decision
+    const sellerDecision = detectDecisionCriteria(lastSellerMessage.content);
+    console.log(`   Seller decision: ${sellerDecision.decisionType}`);
+
+    // If seller proposed a price, check if it satisfies both parties
+    if (sellerDecision.agreedPrice) {
+      const mutualCheck = checkMutualSatisfaction({
+        proposedPrice: sellerDecision.agreedPrice,
+        buyerBudget: { min: params.buyRequest.minPrice, max: params.buyRequest.maxPrice },
+        sellerPrice: { base: params.listing.basePrice, expected: params.listing.expectedPrice },
+      });
+
+      console.log(`   Mutual satisfaction check: ${mutualCheck.isSatisfied ? '✅' : '❌'} ${mutualCheck.reason}`);
+
+      if (mutualCheck.isSatisfied && sellerDecision.hasDecision) {
+        console.log(`✅ Negotiation concluded: Both parties satisfied at ${sellerDecision.agreedPrice} HBAR`);
+
+        await prisma.negotiationRoom.update({
+          where: { id: params.roomId },
+          data: { status: 'COMPLETED' },
+        });
+
+        io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
+          roomId: params.roomId,
+          decisionType: 'price_agreed',
+          agreedPrice: sellerDecision.agreedPrice,
+          reason: mutualCheck.reason,
+        });
+
+        break;
+      }
+    }
+
+    if (sellerDecision.hasDecision && sellerDecision.decisionType === 'rejected') {
+      console.log(`✅ Negotiation concluded: ${sellerDecision.decisionType}`);
+
+      await prisma.negotiationRoom.update({
+        where: { id: params.roomId },
+        data: { status: 'COMPLETED' },
+      });
+
+      io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
+        roomId: params.roomId,
+        decisionType: sellerDecision.decisionType,
+        agreedPrice: sellerDecision.agreedPrice,
+      });
+
+      break;
+    }
+
+    // Generate buyer response using OpenAI
+    try {
+      const conversationContext = currentHistory
+        .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
+        .join('\n\n');
+
+      const prompt = `You are a buyer agent negotiating to purchase an item. Here's the context:
+
+LISTING:
+- ID: ${params.listing.listingId}
+- Title: ${params.listing.title}
+- Description: ${params.listing.description}
+- Seller's asking price: ${params.listing.basePrice} HBAR
+- Seller's expected price: ${params.listing.expectedPrice} HBAR
+
+YOUR BUYER REQUEST:
+- Looking for: ${params.buyRequest.title}
+- Details: ${params.buyRequest.description}
+- Budget: ${params.buyRequest.minPrice}-${params.buyRequest.maxPrice} HBAR
+
+CONVERSATION SO FAR:
+${conversationContext}
+
+Generate a response that:
+1. Responds directly to the seller's last message
+2. Tries to negotiate toward a price within your budget (${params.buyRequest.minPrice}-${params.buyRequest.maxPrice} HBAR)
+3. Makes concrete proposals (specific prices, not vague statements)
+4. Aims to reach an agreement or make a final decision
+5. Be concise and professional
+
+Your response (max 150 words):`;
+
+      const openaiApiKey = process.env.OPENAI_API_KEY;
+      if (!openaiApiKey) {
+        throw new Error('OPENAI_API_KEY not configured');
+      }
+
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_LARGE_MODEL || 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: 'You are a professional buyer agent negotiating purchases.' },
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 300,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!openaiResponse.ok) {
+        const errorText = await openaiResponse.text();
+        throw new Error(`OpenAI API error: ${openaiResponse.status} ${errorText}`);
+      }
+
+      const openaiData = await openaiResponse.json();
+      const buyerResponse = openaiData.choices[0].message.content.trim();
+
+      console.log(`   Buyer generated response: ${buyerResponse.substring(0, 100)}...`);
+
+      // Send buyer response to seller via A2A
+      const a2aResponse = await sendNegotiationResponse({
+        targetAgentEndpoint: params.sellerA2AEndpoint,
+        messageText: buyerResponse,
+        negotiationContext: {
+          listingId: params.listing.listingId,
+          listingTitle: params.listing.title,
+          currentPrice: params.listing.basePrice,
+          budget: { min: params.buyRequest.minPrice, max: params.buyRequest.maxPrice },
+        },
+        messageId: `round-${roundCount}-buyer-${params.buyRequest.id}`,
+      });
+
+      // Log buyer message to negotiation room
+      await sendMessage({
+        roomId: params.roomId,
+        senderAgentId: params.buyerAgentId,
+        content: buyerResponse,
+        messageType: 'negotiation',
+        metadata: {
+          roundNumber: roundCount,
+          source: 'ai-generated',
+        },
+      });
+
+      // Log seller response to negotiation room
+      const sellerResponseText = a2aResponse.result.parts[0]?.text;
+      if (sellerResponseText) {
+        await sendMessage({
+          roomId: params.roomId,
+          senderAgentId: params.sellerAgentId,
+          content: sellerResponseText,
+          messageType: 'negotiation',
+          metadata: {
+            a2aMessageId: a2aResponse.result.messageId,
+            roundNumber: roundCount,
+            source: 'a2a-response',
+          },
+        });
+
+        // Add to conversation history
+        currentHistory.push({ role: 'buyer', content: buyerResponse });
+        currentHistory.push({ role: 'seller', content: sellerResponseText });
+
+        // Check if buyer's response indicates a decision
+        const buyerDecision = detectDecisionCriteria(buyerResponse);
+
+        // If buyer proposed a price, check mutual satisfaction
+        if (buyerDecision.agreedPrice) {
+          const mutualCheck = checkMutualSatisfaction({
+            proposedPrice: buyerDecision.agreedPrice,
+            buyerBudget: { min: params.buyRequest.minPrice, max: params.buyRequest.maxPrice },
+            sellerPrice: { base: params.listing.basePrice, expected: params.listing.expectedPrice },
+          });
+
+          console.log(`   Buyer mutual satisfaction check: ${mutualCheck.isSatisfied ? '✅' : '❌'} ${mutualCheck.reason}`);
+
+          if (mutualCheck.isSatisfied && buyerDecision.hasDecision) {
+            console.log(`✅ Buyer made satisfactory decision at ${buyerDecision.agreedPrice} HBAR`);
+
+            await prisma.negotiationRoom.update({
+              where: { id: params.roomId },
+              data: { status: 'COMPLETED' },
+            });
+
+            io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
+              roomId: params.roomId,
+              decisionType: 'price_agreed',
+              agreedPrice: buyerDecision.agreedPrice,
+              reason: mutualCheck.reason,
+            });
+
+            break;
+          }
+        }
+
+        if (buyerDecision.hasDecision && buyerDecision.decisionType === 'rejected') {
+          console.log(`✅ Buyer rejected the offer`);
+
+          await prisma.negotiationRoom.update({
+            where: { id: params.roomId },
+            data: { status: 'COMPLETED' },
+          });
+
+          io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
+            roomId: params.roomId,
+            decisionType: buyerDecision.decisionType,
+            agreedPrice: buyerDecision.agreedPrice,
+          });
+
+          break;
+        }
+      } else {
+        console.log(`⚠️  No response from seller, ending negotiation`);
+        break;
+      }
+
+      // Small delay between rounds to avoid overwhelming the agents
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+    } catch (error: any) {
+      console.error(`❌ Error in negotiation round ${roundCount}:`, error?.message || error);
+      break;
+    }
+  }
+
+  if (roundCount >= MAX_ROUNDS) {
+    console.log(`⚠️  Negotiation reached max rounds (${MAX_ROUNDS}), stopping`);
+  }
+
+  console.log(`✅ Negotiation completed after ${roundCount} rounds`);
 }
 
 /**
@@ -190,6 +461,15 @@ async function processAutoSearch(
     try {
       console.log(`🤝 Initiating negotiation for BuyRequest ${buyRequestId}`);
 
+      // Prepare context for agents: Listing details
+      const listingContext = {
+        listingId: bestMatch.listingId,
+        title: bestMatch.title,
+        description: bestMatch.description,
+        basePrice: bestMatch.basePrice,
+        expectedPrice: bestMatch.expectedPrice,
+      };
+
       const a2aResponse = await sendNegotiationGreeting({
         sellerA2AEndpoint: a2aInfo.a2aEndpoint,
         buyRequest: {
@@ -199,23 +479,16 @@ async function processAutoSearch(
           minPrice: buyRequest.minPrice,
           maxPrice: buyRequest.maxPrice,
         },
-        listingId: Number(bestMatch.listingId),
+        listing: listingContext,
         negotiationRoomId: room.id,
       });
 
       // Log buyer's greeting message to negotiation room
-      const greetingText = `Hello! I'm interested in your listing #${bestMatch.listingId}.
+      const greetingText = `Hello! I'm interested in your listing #${bestMatch.listingId} (${bestMatch.title}).
 
-**What I'm looking for:**
-${buyRequest.title}
+I'm looking for "${buyRequest.title}" and your listing seems like a good match. My budget is ${buyRequest.minPrice}-${buyRequest.maxPrice} HBAR.
 
-**Details:**
-${buyRequest.description}
-
-**Budget:**
-${buyRequest.minPrice}-${buyRequest.maxPrice} HBAR
-
-I found your listing through semantic search and would like to discuss the details. Are you available to negotiate?`;
+Your asking price is ${bestMatch.basePrice} HBAR. Can we negotiate a price that works for both of us?`;
 
       await sendMessage({
         roomId: room.id,
@@ -241,9 +514,36 @@ I found your listing through semantic search and would like to discuss the detai
             source: 'a2a-response',
           },
         });
+
+        console.log(`✅ Initial greeting exchanged, starting multi-round negotiation`);
+
+        // Start multi-round negotiation
+        await continueNegotiation({
+          roomId: room.id,
+          buyerAgentId: buyerAgentId,
+          sellerAgentId: bestMatch.sellerAgentId,
+          buyerA2AEndpoint: buyerA2AInfo.a2aEndpoint,
+          sellerA2AEndpoint: a2aInfo.a2aEndpoint,
+          buyRequest: {
+            id: buyRequestId,
+            title: buyRequest.title,
+            description: buyRequest.description,
+            minPrice: buyRequest.minPrice,
+            maxPrice: buyRequest.maxPrice,
+          },
+          listing: listingContext,
+          conversationHistory: [
+            { role: 'buyer', content: greetingText },
+            { role: 'seller', content: sellerResponseText },
+          ],
+          maxRounds: 20,
+        });
+
+        console.log(`✅ Negotiation process completed`);
+      } else {
+        console.log(`⚠️  No response from seller, negotiation cannot continue`);
       }
 
-      console.log(`✅ Negotiation initiated successfully`);
     } catch (error: any) {
       console.error(`⚠️  Failed to send A2A greeting, but room is ready:`, error?.message || error);
       console.error(`   Error type: ${error?.name}`);
