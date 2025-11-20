@@ -57,18 +57,18 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
     // Step 1: Search listings
     await updateSearchProgress(buyRequestId, 'searching', 'Searching for matching listings...');
 
-    const listingsResult = await getListings({
+    const listings = await getListings({
       status: 'OPEN',
       search: searchQuery,
     });
 
-    if (!listingsResult.listings || listingsResult.listings.length === 0) {
+    if (!listings || listings.length === 0) {
       await updateSearchProgress(buyRequestId, 'no_results', 'No matching listings found');
       return;
     }
 
     // Filter by price
-    const affordableListings = listingsResult.listings.filter(
+    const affordableListings = listings.filter(
       (l: any) => l.basePrice <= maxPrice
     );
 

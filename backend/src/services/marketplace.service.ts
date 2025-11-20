@@ -63,7 +63,7 @@ export async function createListing(params: {
 
     const tx = new ContractExecuteTransaction()
       .setContractId(ContractId.fromString(MARKETPLACE_CONTRACT_ID))
-      .setGas(300000)
+      .setGas(500000)
       .setFunction("createListing", functionParams);
 
     const txResponse = await tx.execute(client);
@@ -326,7 +326,7 @@ export async function createInquiry(params: {
 
     const tx = new ContractExecuteTransaction()
       .setContractId(ContractId.fromString(MARKETPLACE_CONTRACT_ID))
-      .setGas(300000)
+      .setGas(500000)
       .setFunction("createInquiry", functionParams);
 
     const txResponse = await tx.execute(client);

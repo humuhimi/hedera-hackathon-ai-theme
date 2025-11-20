@@ -20,7 +20,7 @@ interface SendMessageParams {
 const CONFIG = {
   CONTEXT_MESSAGE_LIMIT: 10,       // Number of messages to include in context summary
   CONTEXT_CHAR_LIMIT: 200,         // Max characters per message in summary
-  POLL_MAX_ATTEMPTS: 20,           // Max polling attempts for agent response
+  POLL_MAX_ATTEMPTS: 25,           // Max polling attempts for agent response (25 seconds total)
   POLL_INTERVAL_MS: 1000,          // Polling interval in milliseconds
   RECENT_MESSAGE_THRESHOLD_MS: 5000, // Threshold for "recent" messages
 } as const;
@@ -270,6 +270,7 @@ class AgentService {
     const seenMessageIds = new Set<string>();
     let firstResponseTime = 0;
     const ADDITIONAL_WAIT_MS = 3000; // Wait 3 seconds after first response for additional messages
+    const URL_PATTERNS = ['/listing/', '/buy-request/', '/negotiation/']; // Completion indicators
 
     console.log(`⏳ Waiting for agent response in channel ${channelId}, after message ${afterMessageId}`);
 
@@ -358,17 +359,46 @@ class AgentService {
             }
           }
 
-          // If we have responses, wait a bit more for additional messages
+          // If we have responses, check for completion or wait for additional messages
           if (collectedResponses.length > 0 && firstResponseTime > 0) {
+            // Check if any response contains a completion indicator (URL)
+            const hasCompletionUrl = collectedResponses.some(r =>
+              URL_PATTERNS.some(pattern => r.content.includes(pattern))
+            );
+
+            // Check if responses indicate an action is being processed (need to wait for URL)
+            const ACTION_KEYWORDS = ['作成', '出品', 'リスト', 'creating', 'listing', 'request'];
+            const isWaitingForAction = !hasCompletionUrl && collectedResponses.some(r =>
+              ACTION_KEYWORDS.some(keyword => r.content.toLowerCase().includes(keyword.toLowerCase()))
+            );
+
             const timeSinceFirstResponse = Date.now() - firstResponseTime;
-            if (timeSinceFirstResponse >= ADDITIONAL_WAIT_MS) {
-              // Sort by creation time and concatenate
+
+            // Return conditions:
+            // 1. Found a completion URL - return immediately
+            // 2. Not waiting for action and ADDITIONAL_WAIT_MS passed - return (simple conversation)
+            // 3. Waiting for action - keep polling (don't return early)
+            if (hasCompletionUrl) {
               collectedResponses.sort((a, b) =>
                 new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
               );
               const concatenated = collectedResponses.map(r => r.content).join('\n\n');
-              console.log(`✅ Returning ${collectedResponses.length} concatenated response(s)`);
+              console.log(`✅ Returning ${collectedResponses.length} concatenated response(s) (found completion URL)`);
               return concatenated;
+            }
+
+            if (!isWaitingForAction && timeSinceFirstResponse >= ADDITIONAL_WAIT_MS) {
+              collectedResponses.sort((a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              );
+              const concatenated = collectedResponses.map(r => r.content).join('\n\n');
+              console.log(`✅ Returning ${collectedResponses.length} concatenated response(s) (simple conversation)`);
+              return concatenated;
+            }
+
+            // If waiting for action but no URL yet, continue polling
+            if (isWaitingForAction) {
+              console.log(`⏳ Waiting for action completion URL...`);
             }
           }
         }
@@ -412,6 +442,24 @@ class AgentService {
       where: {
         id: agentId,
         userId,
+      },
+    });
+  }
+
+  /**
+   * Get agent by elizaAgentId (ElizaOS runtime ID)
+   * Used by ElizaOS agents to resolve their on-chain ERC-8004 ID
+   */
+  async getAgentByElizaId(elizaAgentId: string) {
+    return prisma.agent.findFirst({
+      where: {
+        elizaAgentId,
+      },
+      select: {
+        id: true,
+        erc8004AgentId: true,
+        type: true,
+        name: true,
       },
     });
   }

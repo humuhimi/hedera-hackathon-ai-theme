@@ -6,6 +6,38 @@ import { getAgentA2AEndpoint } from '../services/marketplace.service.js';
 const router = express.Router();
 
 /**
+ * Resolve elizaAgentId to erc8004AgentId
+ * GET /agents/eliza/:elizaAgentId/erc8004-id
+ * Public API (no authentication required)
+ *
+ * Used by ElizaOS agents to get their on-chain ID
+ */
+router.get('/eliza/:elizaAgentId/erc8004-id', async (req, res) => {
+  try {
+    const elizaAgentId = req.params.elizaAgentId;
+
+    if (!elizaAgentId) {
+      return res.status(400).json({ error: "Invalid elizaAgentId" });
+    }
+
+    const agent = await agentService.getAgentByElizaId(elizaAgentId);
+
+    if (!agent) {
+      return res.status(404).json({ error: `Agent not found for elizaAgentId: ${elizaAgentId}` });
+    }
+
+    res.json({
+      elizaAgentId,
+      erc8004AgentId: agent.erc8004AgentId,
+      type: agent.type,
+    });
+  } catch (error: any) {
+    console.error(`Error in GET /agents/eliza/${req.params.elizaAgentId}/erc8004-id:`, error);
+    res.status(500).json({ error: error.message || "Failed to resolve agent ID" });
+  }
+});
+
+/**
  * Get A2A endpoint for an agent from ERC-8004 registry
  * GET /agents/erc8004/:agentId/a2a
  * Public API (no authentication required)

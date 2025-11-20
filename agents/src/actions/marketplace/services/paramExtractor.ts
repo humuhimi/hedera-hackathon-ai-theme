@@ -8,7 +8,17 @@ import { IAgentRuntime, Memory } from '@elizaos/core';
 import { ListingParams, InquiryParams, BuyRequestParams, ExtractedParams } from '../shared/types';
 import { translator } from './translator';
 
+// Cache for resolved agent IDs (elizaAgentId -> erc8004AgentId)
+const agentIdCache = new Map<string, number>();
+
+// Validate required environment variables
+const BACKEND_URL = process.env.BACKEND_URL;
+if (!BACKEND_URL) {
+  throw new Error('BACKEND_URL environment variable is required');
+}
+
 export class ParamExtractorService {
+  private backendUrl = BACKEND_URL;
   /**
    * Extract listing parameters using AI translation (language-independent)
    */
@@ -28,7 +38,7 @@ export class ParamExtractorService {
 
     console.log('🤖 AI Extracted:', JSON.stringify(aiExtracted, null, 2));
 
-    const sellerAgentId = this.getAgentId(runtime, 'seller');
+    const sellerAgentId = await this.getAgentId(runtime, 'seller');
 
     if (!process.env.HEDERA_MANAGER_ACCOUNT_ID || !process.env.HEDERA_MANAGER_PRIVATE_KEY) {
       throw new Error('HEDERA_MANAGER_ACCOUNT_ID and HEDERA_MANAGER_PRIVATE_KEY environment variables are required');
@@ -78,7 +88,7 @@ export class ParamExtractorService {
     const priceMatch = text.match(/(\d+(?:\.\d+)?)/);
     const offerPrice = priceMatch ? parseFloat(priceMatch[1]) : undefined;
 
-    const buyerAgentId = this.getAgentId(runtime, 'buyer');
+    const buyerAgentId = await this.getAgentId(runtime, 'buyer');
 
     if (!process.env.HEDERA_RECEIVER_ACCOUNT_ID || !process.env.HEDERA_RECEIVER_PRIVATE_KEY) {
       throw new Error('HEDERA_RECEIVER_ACCOUNT_ID and HEDERA_RECEIVER_PRIVATE_KEY environment variables are required');
@@ -122,7 +132,7 @@ export class ParamExtractorService {
 
     console.log('🤖 AI Extracted:', JSON.stringify(aiExtracted, null, 2));
 
-    const buyerAgentId = this.getAgentId(runtime, 'buyer');
+    const buyerAgentId = await this.getAgentId(runtime, 'buyer');
 
     const params: Partial<BuyRequestParams> = {
       buyerAgentId,
@@ -151,14 +161,46 @@ export class ParamExtractorService {
   }
 
   /**
-   * Get agent ID from runtime
+   * Get agent ID from runtime by resolving elizaAgentId to erc8004AgentId
+   * Calls backend API to get the on-chain ID for this agent
    */
-  private getAgentId(_runtime: IAgentRuntime, type: 'seller' | 'buyer'): number {
-    // TODO: When ERC-8004 NFT is implemented, get from runtime.agentId
-    // For now, use environment variable or default
-    const envKey =
-      type === 'seller' ? 'SELLER_AGENT_ID' : 'BUYER_AGENT_ID';
-    return parseInt(process.env[envKey] || (type === 'seller' ? '1' : '2'), 10);
+  private async getAgentId(runtime: IAgentRuntime, _type: 'seller' | 'buyer'): Promise<number> {
+    const elizaAgentId = runtime.agentId;
+
+    // Check cache first
+    if (agentIdCache.has(elizaAgentId)) {
+      const cachedId = agentIdCache.get(elizaAgentId)!;
+      console.log(`📋 Using cached erc8004AgentId: ${cachedId} for eliza: ${elizaAgentId}`);
+      return cachedId;
+    }
+
+    // Call backend to resolve elizaAgentId -> erc8004AgentId
+    try {
+      console.log(`🔍 Resolving elizaAgentId: ${elizaAgentId} to erc8004AgentId...`);
+
+      const response = await fetch(`${this.backendUrl}/agents/eliza/${elizaAgentId}/erc8004-id`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to resolve agent ID: ${errorText}`);
+      }
+
+      const data = await response.json() as { erc8004AgentId: number; type: string };
+      const erc8004AgentId = data.erc8004AgentId;
+
+      if (!erc8004AgentId) {
+        throw new Error(`No erc8004AgentId found for elizaAgentId: ${elizaAgentId}`);
+      }
+
+      // Cache the result
+      agentIdCache.set(elizaAgentId, erc8004AgentId);
+      console.log(`✅ Resolved erc8004AgentId: ${erc8004AgentId} for eliza: ${elizaAgentId}`);
+
+      return erc8004AgentId;
+    } catch (error) {
+      console.error(`❌ Error resolving agent ID:`, error);
+      throw error;
+    }
   }
 
   /**
