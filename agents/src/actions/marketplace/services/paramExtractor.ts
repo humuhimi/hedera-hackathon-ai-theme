@@ -124,7 +124,29 @@ export class ParamExtractorService {
     console.log('📝 Original:', message.content.text);
 
     const originalText = message.content.text || '';
-    const conversationHistory = state?.text;
+
+    // Get recent conversation history from memory
+    let conversationHistory = state?.text || '';
+
+    // If not in state, try to get from runtime memory
+    if (!conversationHistory && message.roomId) {
+      try {
+        const recentMemories = await runtime.messageManager.getMemories({
+          roomId: message.roomId,
+          count: 10,
+          unique: false,
+        });
+
+        // Build conversation history from recent messages
+        conversationHistory = recentMemories
+          .map((m: any) => `${m.userId === message.userId ? 'User' : 'Agent'}: ${m.content?.text || ''}`)
+          .join('\n');
+
+        console.log('📜 Loaded conversation history from memory (last 10 messages)');
+      } catch (error) {
+        console.log('⚠️  Could not load conversation history:', error);
+      }
+    }
 
     // Use AI to extract structured info (reusing translator for buy requests)
     // BuyRequest uses same fields as Listing (title, description, basePrice as minPrice, expectedPrice as maxPrice)

@@ -156,7 +156,8 @@ model NegotiationRoom {
   buyerAgentId    Int?     // ERC-8004 Agent ID of buyer (set when matched)
   sellerA2AEndpoint String // Seller's A2A endpoint
   buyerA2AEndpoint  String? // Buyer's A2A endpoint (set when matched)
-  status          String   @default("WAITING") // WAITING, ACTIVE, COMPLETED, CANCELLED
+  status          String   @default("WAITING") // WAITING, ACTIVE, COMPLETED, REJECTED, CANCELLED
+  agreedPrice     Float?   // Final agreed price (set when deal is confirmed)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

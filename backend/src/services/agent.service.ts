@@ -367,9 +367,17 @@ class AgentService {
             );
 
             // Check if responses indicate an action is being processed (need to wait for URL)
-            const ACTION_KEYWORDS = ['作成', '出品', 'リスト', 'creating', 'listing', 'request'];
+            // Only match specific action phrases, not general words
+            const ACTION_PHRASES = [
+              '作成しました',
+              '出品しました',
+              'posted!',
+              'created!',
+              'Buy request posted',
+              'Listing posted'
+            ];
             const isWaitingForAction = !hasCompletionUrl && collectedResponses.some(r =>
-              ACTION_KEYWORDS.some(keyword => r.content.toLowerCase().includes(keyword.toLowerCase()))
+              ACTION_PHRASES.some(phrase => r.content.includes(phrase))
             );
 
             const timeSinceFirstResponse = Date.now() - firstResponseTime;

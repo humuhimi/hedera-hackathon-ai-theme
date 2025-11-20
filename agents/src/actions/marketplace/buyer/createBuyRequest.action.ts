@@ -76,7 +76,15 @@ export const createBuyRequestAction: Action = {
       }
 
       await callback({
-        text: `✅ Buy request posted!\n\n🛒 ${extraction.params.title}\nBudget: ${extraction.params.minPrice}-${extraction.params.maxPrice} HBAR\nID: ${result.buyRequestId}\n\n🔗 ${buyRequestUrl}`,
+        text: `✅ Buy request posted!
+
+🛒 ${extraction.params.title}
+Budget: ${extraction.params.minPrice}-${extraction.params.maxPrice} HBAR
+ID: ${result.buyRequestId}
+
+🔗 ${buyRequestUrl}
+
+🔍 Searching for matching listings...`,
         action: 'CREATE_BUY_REQUEST',
       });
 

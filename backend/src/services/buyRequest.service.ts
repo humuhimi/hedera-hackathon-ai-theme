@@ -78,7 +78,7 @@ async function continueNegotiation(params: {
   conversationHistory: Array<{ role: 'buyer' | 'seller'; content: string }>;
   maxRounds?: number;
 }) {
-  const MAX_ROUNDS = params.maxRounds || 20;
+  const MAX_ROUNDS = params.maxRounds || 25;
   let roundCount = 0;
   let currentHistory = [...params.conversationHistory];
 
@@ -114,12 +114,16 @@ async function continueNegotiation(params: {
 
         await prisma.negotiationRoom.update({
           where: { id: params.roomId },
-          data: { status: 'COMPLETED' },
+          data: {
+            status: 'COMPLETED',
+            agreedPrice: sellerDecision.agreedPrice,
+          },
         });
 
         io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
           roomId: params.roomId,
           decisionType: 'price_agreed',
+          status: 'COMPLETED',
           agreedPrice: sellerDecision.agreedPrice,
           reason: mutualCheck.reason,
         });
@@ -133,13 +137,13 @@ async function continueNegotiation(params: {
 
       await prisma.negotiationRoom.update({
         where: { id: params.roomId },
-        data: { status: 'COMPLETED' },
+        data: { status: 'REJECTED' },
       });
 
       io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
         roomId: params.roomId,
         decisionType: sellerDecision.decisionType,
-        agreedPrice: sellerDecision.agreedPrice,
+        status: 'REJECTED',
       });
 
       break;
@@ -168,14 +172,20 @@ YOUR BUYER REQUEST:
 CONVERSATION SO FAR:
 ${conversationContext}
 
-Generate a response that:
-1. Responds directly to the seller's last message
-2. Tries to negotiate toward a price within your budget (${params.buyRequest.minPrice}-${params.buyRequest.maxPrice} HBAR)
-3. Makes concrete proposals (specific prices, not vague statements)
-4. Aims to reach an agreement or make a final decision
-5. Be concise and professional
+CRITICAL NEGOTIATION RULES:
+1. If the seller accepts your offer, respond with "I accept this price. Deal!" and DO NOT try to lower the price further
+2. Each price change must be at least 0.1 HBAR (no micro-adjustments like 0.01-0.02 HBAR)
+3. Make at most 2-3 counter-offers before accepting or rejecting
+4. If the seller's price is within your budget (${params.buyRequest.minPrice}-${params.buyRequest.maxPrice} HBAR), ACCEPT IT
+5. Be fair and realistic - do not keep asking for lower prices indefinitely
 
-Your response (max 150 words):`;
+Generate a response that:
+- Responds directly to the seller's last message
+- Makes ONE concrete price proposal or accepts the seller's offer
+- Is concise (max 80 words) and professional
+- Leads to a FINAL decision within 2-3 more exchanges
+
+Your response:`;
 
       const openaiApiKey = process.env.OPENAI_API_KEY;
       if (!openaiApiKey) {
@@ -271,7 +281,10 @@ Your response (max 150 words):`;
 
             await prisma.negotiationRoom.update({
               where: { id: params.roomId },
-              data: { status: 'COMPLETED' },
+              data: {
+                status: 'COMPLETED',
+                agreedPrice: buyerDecision.agreedPrice,
+              },
             });
 
             io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
@@ -317,6 +330,19 @@ Your response (max 150 words):`;
 
   if (roundCount >= MAX_ROUNDS) {
     console.log(`⚠️  Negotiation reached max rounds (${MAX_ROUNDS}), stopping`);
+
+    // Update status to CANCELLED if max rounds reached without agreement
+    await prisma.negotiationRoom.update({
+      where: { id: params.roomId },
+      data: { status: 'CANCELLED' },
+    });
+
+    io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
+      roomId: params.roomId,
+      decisionType: 'max_rounds_reached',
+      status: 'CANCELLED',
+      reason: `Negotiation ended after ${MAX_ROUNDS} rounds without agreement`,
+    });
   }
 
   console.log(`✅ Negotiation completed after ${roundCount} rounds`);
@@ -536,7 +562,7 @@ Your asking price is ${bestMatch.basePrice} HBAR. Can we negotiate a price that 
             { role: 'buyer', content: greetingText },
             { role: 'seller', content: sellerResponseText },
           ],
-          maxRounds: 20,
+          maxRounds: 25,
         });
 
         console.log(`✅ Negotiation process completed`);
@@ -565,6 +591,13 @@ Your asking price is ${bestMatch.basePrice} HBAR. Can we negotiate a price that 
 
     console.log(`🤝 BuyRequest ${buyRequestId} joined NegotiationRoom ${room.id}`);
 
+    return {
+      success: true,
+      negotiationRoomId: room.id,
+      listingId: bestMatch.listingId,
+      sellerAgentId: bestMatch.sellerAgentId,
+    };
+
   } catch (error: any) {
     console.error('Auto search failed:', error);
     await updateSearchProgress(
@@ -573,6 +606,10 @@ Your asking price is ${bestMatch.basePrice} HBAR. Can we negotiate a price that 
       'Search failed',
       { searchError: error.message || 'Unknown error' }
     );
+    return {
+      success: false,
+      error: error.message || 'Unknown error',
+    };
   }
 }
 
@@ -604,6 +641,7 @@ export async function createBuyRequest(params: {
     });
 
     // Start auto search process asynchronously (don't await)
+    // Results will be communicated via WebSocket events
     processAutoSearch(
       buyRequest.id,
       {

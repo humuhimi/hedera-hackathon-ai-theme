@@ -109,7 +109,7 @@ export function detectDecisionCriteria(message: string): {
   const lowerMsg = message.toLowerCase();
 
   // Check for explicit acceptance
-  const acceptanceKeywords = ['deal', 'accept', 'agree', 'sold', 'purchase', "let's proceed", "i'll buy", "i'll take it", 'okay', 'sounds good'];
+  const acceptanceKeywords = ['deal!', 'deal.', 'i accept', 'accept this price', 'accept your offer', 'agreed', 'sold', 'purchase', "let's proceed", "i'll buy", "i'll take it", 'finalize', 'confirm the'];
   const hasAcceptance = acceptanceKeywords.some(keyword => lowerMsg.includes(keyword));
 
   // Check for explicit rejection
@@ -212,12 +212,27 @@ export async function sendNegotiationGreeting(params: {
 You are negotiating about Listing #${params.listing.listingId}:
 - Title: ${params.listing.title}
 - Description: ${params.listing.description}
-- Your asking price: ${params.listing.basePrice} HBAR (expected: ${params.listing.expectedPrice} HBAR)
+- Your base price: ${params.listing.basePrice} HBAR
+- Your expected price (target): ${params.listing.expectedPrice} HBAR
 
 BUYER'S REQUEST:
 - Looking for: ${params.buyRequest.title}
 - Details: ${params.buyRequest.description}
 - Budget: ${params.buyRequest.minPrice}-${params.buyRequest.maxPrice} HBAR
+
+STRATEGIC PRICING GUIDANCE:
+- Buyer's maximum budget is ${params.buyRequest.maxPrice} HBAR
+- Your expected price is ${params.listing.expectedPrice} HBAR
+- Recommended opening price: ${Math.min(params.buyRequest.maxPrice * 0.85, params.listing.expectedPrice * 1.3).toFixed(1)} HBAR (aim for their upper budget range)
+- Minimum acceptable: ${(params.listing.expectedPrice * 0.8).toFixed(1)} HBAR (80% of expected)
+- Any offer within 10% of your expected price (${(params.listing.expectedPrice * 0.9).toFixed(1)}-${(params.listing.expectedPrice * 1.1).toFixed(1)} HBAR) should be ACCEPTED
+
+IMPORTANT RULES:
+1. Make ONE clear counter-offer with specific price
+2. If buyer accepts your price, respond with "I accept this price. Deal!" and STOP
+3. Make maximum 2 counter-offers, then accept or reject
+4. Once you say "Deal" or "I accept", you CANNOT change the price
+5. Keep responses concise (max 80 words)
 
 ---
 
@@ -227,7 +242,7 @@ I'm looking for "${params.buyRequest.title}" and your listing seems like a good 
 
 Your asking price is ${params.listing.basePrice} HBAR. Can we negotiate a price that works for both of us?
 
-Please make a concrete proposal or counteroffer so we can reach an agreement.
+Please make ONE concrete price proposal so we can reach an agreement quickly.
 
 Negotiation Room: ${params.negotiationRoomId}`;
 
@@ -249,15 +264,24 @@ export async function sendNegotiationResponse(params: {
     listingTitle: string;
     currentPrice: number;
     budget: { min: number; max: number };
+    expectedPrice?: number;
+    roundNumber?: number;
   };
   messageId: string;
 }): Promise<A2AResponse> {
   const contextualMessage = `NEGOTIATION CONTEXT:
 Listing #${params.negotiationContext.listingId}: ${params.negotiationContext.listingTitle}
-Current price: ${params.negotiationContext.currentPrice} HBAR
-Your budget: ${params.negotiationContext.budget.min}-${params.negotiationContext.budget.max} HBAR
+Current offer: ${params.negotiationContext.currentPrice} HBAR
+${params.negotiationContext.expectedPrice ? `Expected price: ${params.negotiationContext.expectedPrice} HBAR` : ''}
+Budget range: ${params.negotiationContext.budget.min}-${params.negotiationContext.budget.max} HBAR
+${params.negotiationContext.roundNumber ? `Round: ${params.negotiationContext.roundNumber}/25` : ''}
 
-IMPORTANT: Please make a concrete decision (accept, reject, or counter-offer with specific price).
+CRITICAL RULES:
+1. Make a concrete decision (accept, reject, or ONE counter-offer with specific price)
+2. If you say "Deal" or "I accept", you CANNOT change the price afterward
+3. Be strategic: Consider if this price is fair for both parties
+4. Negotiation will continue until agreement or rejection (max 25 rounds)
+5. Keep response under 80 words
 
 ---
 

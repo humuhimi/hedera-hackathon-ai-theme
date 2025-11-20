@@ -15,10 +15,18 @@ interface NegotiationMessage {
   createdAt: string
 }
 
+interface NegotiationConcluded {
+  roomId: string
+  decisionType: 'price_agreed' | 'accepted' | 'rejected'
+  agreedPrice?: number
+  reason?: string
+}
+
 interface UseNegotiationWebSocketProps {
   roomId: string | undefined
   onMessage: (message: NegotiationMessage) => void
   onStatusChanged?: (status: string) => void
+  onConcluded?: (data: NegotiationConcluded) => void
 }
 
 /**
@@ -28,17 +36,20 @@ export function useNegotiationWebSocket({
   roomId,
   onMessage,
   onStatusChanged,
+  onConcluded,
 }: UseNegotiationWebSocketProps) {
   const [isConnected, setIsConnected] = useState(false)
   const socketRef = useRef<Socket | null>(null)
   const onMessageRef = useRef(onMessage)
   const onStatusChangedRef = useRef(onStatusChanged)
+  const onConcludedRef = useRef(onConcluded)
 
   // Update refs when callbacks change
   useEffect(() => {
     onMessageRef.current = onMessage
     onStatusChangedRef.current = onStatusChanged
-  }, [onMessage, onStatusChanged])
+    onConcludedRef.current = onConcluded
+  }, [onMessage, onStatusChanged, onConcluded])
 
   useEffect(() => {
     const session = sessionManager.get()
@@ -85,6 +96,12 @@ export function useNegotiationWebSocket({
     socket.on('negotiation:statusChanged', ({ status }) => {
       console.log('🔄 Negotiation status changed:', status)
       onStatusChangedRef.current?.(status)
+    })
+
+    // Listen for negotiation conclusion
+    socket.on('negotiation:concluded', (data: NegotiationConcluded) => {
+      console.log('✅ Negotiation concluded:', data)
+      onConcludedRef.current?.(data)
     })
 
     // Error handling
