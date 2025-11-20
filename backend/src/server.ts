@@ -1,5 +1,7 @@
 // Load environment variables FIRST before any other imports
-import 'dotenv/config';
+// IMPORTANT: override=true makes .env values take precedence over shell env vars
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 
 import express, { Request } from 'express';
 import cors from 'cors';

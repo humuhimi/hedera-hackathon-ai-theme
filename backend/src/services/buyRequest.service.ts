@@ -5,11 +5,12 @@
 
 import { PrismaClient } from "@prisma/client";
 import { getListings, getAgentA2AEndpoint } from "./marketplace.service";
+import { semanticSearch } from "./semanticSearch.service";
 import { io } from "../socket";
 
 const prisma = new PrismaClient();
 
-type SearchStep = 'idle' | 'searching' | 'found' | 'verifying' | 'verified' | 'contacting' | 'contacted' | 'negotiating' | 'complete' | 'error' | 'no_results';
+type SearchStep = 'idle' | 'searching' | 'found' | 'verifying' | 'verified' | 'contacting' | 'contacted' | 'joined_room' | 'negotiation_complete' | 'complete' | 'error' | 'no_results';
 
 /**
  * Update buy request search progress
@@ -52,24 +53,36 @@ async function updateSearchProgress(
  * Process automatic search for a buy request
  * This runs asynchronously after the buy request is created
  */
-async function processAutoSearch(buyRequestId: string, searchQuery: string, maxPrice: number, buyerAgentId: number) {
+async function processAutoSearch(
+  buyRequestId: string,
+  buyRequest: { title: string; description: string; minPrice: number; maxPrice: number },
+  buyerAgentId: number
+) {
   try {
-    // Step 1: Search listings
+    // Step 1: Get all open listings
     await updateSearchProgress(buyRequestId, 'searching', 'Searching for matching listings...');
 
-    const listings = await getListings({
+    const allListings = await getListings({
       status: 'OPEN',
-      search: searchQuery,
     });
 
-    if (!listings || listings.length === 0) {
+    if (!allListings || allListings.length === 0) {
+      await updateSearchProgress(buyRequestId, 'no_results', 'No listings available');
+      return;
+    }
+
+    // Step 2: Use AI to find semantically matching listings
+    const matches = await semanticSearch.findMatchingListings(buyRequest, allListings);
+
+    if (matches.length === 0) {
       await updateSearchProgress(buyRequestId, 'no_results', 'No matching listings found');
       return;
     }
 
-    // Filter by price
-    const affordableListings = listings.filter(
-      (l: any) => l.basePrice <= maxPrice
+    // Get the best match (highest score)
+    const bestMatchResult = matches.sort((a, b) => b.score - a.score)[0];
+    const affordableListings = allListings.filter(
+      (l: any) => l.listingId === bestMatchResult.listingId
     );
 
     if (affordableListings.length === 0) {
@@ -80,7 +93,7 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
     await updateSearchProgress(
       buyRequestId,
       'found',
-      `Found ${affordableListings.length} matching listing(s)`
+      `Found ${matches.length} matching listing(s) - Best: ${bestMatchResult.reason}`
     );
 
     // Step 2: Select best match and verify on-chain
@@ -92,8 +105,21 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       { matchedListingId: Number(bestMatch.listingId), sellerAgentId: bestMatch.sellerAgentId }
     );
 
-    // TODO: Add actual on-chain verification here
-    // For now, assume verified
+    // Verify the listing actually exists in the database (minimal verification)
+    const listingExists = await prisma.listing.findUnique({
+      where: { listingId: bestMatch.listingId },
+    });
+
+    if (!listingExists) {
+      throw new Error(`Listing #${bestMatch.listingId} not found in database`);
+    }
+
+    if (listingExists.status !== 'OPEN') {
+      throw new Error(`Listing #${bestMatch.listingId} is not open (status: ${listingExists.status})`);
+    }
+
+    // TODO: Add actual Hedera on-chain verification here in the future
+
     await updateSearchProgress(
       buyRequestId,
       'verified',
@@ -122,18 +148,7 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       }
     );
 
-    // Step 4: Initiate negotiation - find and update NegotiationRoom
-    await updateSearchProgress(
-      buyRequestId,
-      'negotiating',
-      'Joining negotiation room...',
-      {
-        matchedListingId: Number(bestMatch.listingId),
-        sellerAgentId: bestMatch.sellerAgentId,
-        a2aEndpoint: a2aInfo.a2aEndpoint
-      }
-    );
-
+    // Step 4: Join negotiation room
     // Find the NegotiationRoom for this listing
     const room = await prisma.negotiationRoom.findUnique({
       where: { listingId: bestMatch.listingId },
@@ -156,10 +171,10 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
       },
     });
 
-    // Complete - include negotiationRoomId for frontend navigation
+    // Only mark as joined AFTER successfully updating the room
     await updateSearchProgress(
       buyRequestId,
-      'complete',
+      'joined_room',
       'Joined negotiation room! Ready to negotiate.',
       {
         matchedListingId: Number(bestMatch.listingId),
@@ -168,6 +183,9 @@ async function processAutoSearch(buyRequestId: string, searchQuery: string, maxP
         negotiationRoomId: room.id,
       }
     );
+
+    // Note: Step 5 "Complete Negotiation" will be triggered externally
+    // when the negotiation actually completes. For now, auto-search stops here.
 
     // Update BuyRequest status
     await prisma.buyRequest.update({
@@ -218,7 +236,16 @@ export async function createBuyRequest(params: {
     });
 
     // Start auto search process asynchronously (don't await)
-    processAutoSearch(buyRequest.id, params.title, params.maxPrice, Number(params.buyerAgentId)).catch(err => {
+    processAutoSearch(
+      buyRequest.id,
+      {
+        title: params.title,
+        description: params.description,
+        minPrice: params.minPrice,
+        maxPrice: params.maxPrice,
+      },
+      Number(params.buyerAgentId)
+    ).catch(err => {
       console.error('Auto search process error:', err);
     });
 

@@ -245,8 +245,14 @@ export function BuyRequestDetailPage() {
               <StepIndicator
                 step={4}
                 currentStep={getStepNumber(buyRequest.searchStep as any)}
-                label="Negotiate with Seller"
+                label="Join Negotiation Room"
                 isError={buyRequest.searchStep === 'error' && getStepNumber(buyRequest.searchStep as any) === 4}
+              />
+              <StepIndicator
+                step={5}
+                currentStep={getStepNumber(buyRequest.searchStep as any)}
+                label="Complete Negotiation"
+                isError={buyRequest.searchStep === 'error' && getStepNumber(buyRequest.searchStep as any) === 5}
               />
             </div>
 
@@ -295,14 +301,20 @@ export function BuyRequestDetailPage() {
               </div>
             )}
 
-            {/* Action Button */}
-            {buyRequest.searchStep === 'complete' && buyRequest.negotiationRoomId && (
-              <button
-                onClick={() => navigate(`/negotiation/${buyRequest.negotiationRoomId}`)}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors"
-              >
-                Go to Negotiation Room
-              </button>
+            {/* Negotiation Room Section */}
+            {buyRequest.negotiationRoomId && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">🤝 Negotiation Room</h4>
+                <p className="text-sm text-gray-600 mb-3">
+                  Room ID: <code className="text-xs bg-white px-2 py-1 rounded">{buyRequest.negotiationRoomId}</code>
+                </p>
+                <button
+                  onClick={() => navigate(`/negotiation/${buyRequest.negotiationRoomId}`)}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors"
+                >
+                  Go to Negotiation Room
+                </button>
+              </div>
             )}
           </div>
         </div>
