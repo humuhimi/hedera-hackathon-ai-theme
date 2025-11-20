@@ -191,6 +191,17 @@ export async function getListing(listingId: number) {
       throw new Error(`Listing ${listingId} not found`);
     }
 
+    // Get the associated NegotiationRoom
+    const negotiationRoom = await prisma.negotiationRoom.findUnique({
+      where: {
+        listingId: listingId.toString(),
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
     return {
       listingId: listing.listingId,
       sellerAgentId: listing.sellerAgentId.toString(),
@@ -201,6 +212,8 @@ export async function getListing(listingId: number) {
       status: listing.status,
       createdAt: listing.createdAt.toISOString(),
       transactionId: listing.transactionId,
+      negotiationRoomId: negotiationRoom?.id || null,
+      negotiationRoomStatus: negotiationRoom?.status || null,
     };
   } catch (error) {
     console.error("Error getting listing:", error);
