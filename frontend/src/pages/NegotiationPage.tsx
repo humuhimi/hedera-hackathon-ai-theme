@@ -154,9 +154,20 @@ export function NegotiationPage() {
             <h1 className="text-xl font-bold text-gray-900">
               Negotiation Room
             </h1>
-            <p className="text-sm text-gray-500">
-              Listing #{room.listingId} • {room.status}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-gray-500">
+                Listing #{room.listingId}
+              </p>
+              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                room.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                room.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                room.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
+                room.status === 'ACTIVE' ? 'bg-blue-100 text-blue-800' :
+                'bg-yellow-100 text-yellow-800'
+              }`}>
+                {room.status}
+              </span>
+            </div>
           </div>
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${
             isConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'

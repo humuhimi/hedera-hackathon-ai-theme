@@ -219,7 +219,66 @@ Your response:`;
 
       console.log(`   Buyer generated response: ${buyerResponse.substring(0, 100)}...`);
 
-      // Send buyer response to seller via A2A
+      // Log buyer message to negotiation room FIRST
+      await sendMessage({
+        roomId: params.roomId,
+        senderAgentId: params.buyerAgentId,
+        content: buyerResponse,
+        messageType: 'negotiation',
+        metadata: {
+          roundNumber: roundCount,
+          source: 'ai-generated',
+        },
+      });
+
+      // Check if buyer's response indicates acceptance/decision BEFORE sending to seller
+      const buyerDecision = detectDecisionCriteria(buyerResponse);
+
+      // If buyer said "Deal!" or accepted the price, end negotiation immediately
+      if (buyerDecision.hasDecision && (buyerDecision.decisionType === 'accepted' || buyerDecision.decisionType === 'price_agreed')) {
+        const agreedPrice = buyerDecision.agreedPrice || params.listing.basePrice;
+
+        console.log(`✅ Buyer accepted the deal at ${agreedPrice} HBAR`);
+
+        await prisma.negotiationRoom.update({
+          where: { id: params.roomId },
+          data: {
+            status: 'COMPLETED',
+            agreedPrice,
+          },
+        });
+
+        io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
+          roomId: params.roomId,
+          decisionType: 'price_agreed',
+          agreedPrice,
+          status: 'COMPLETED',
+          reason: `Buyer accepted the offer at ${agreedPrice} HBAR`,
+        });
+
+        break;
+      }
+
+      // If buyer rejected, end negotiation
+      if (buyerDecision.hasDecision && buyerDecision.decisionType === 'rejected') {
+        console.log(`✅ Buyer rejected the offer`);
+
+        await prisma.negotiationRoom.update({
+          where: { id: params.roomId },
+          data: { status: 'REJECTED' },
+        });
+
+        io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
+          roomId: params.roomId,
+          decisionType: 'rejected',
+          status: 'REJECTED',
+          reason: 'Buyer rejected the offer',
+        });
+
+        break;
+      }
+
+      // If no decision yet, send to seller and continue negotiation
       const a2aResponse = await sendNegotiationResponse({
         targetAgentEndpoint: params.sellerA2AEndpoint,
         messageText: buyerResponse,
@@ -230,18 +289,6 @@ Your response:`;
           budget: { min: params.buyRequest.minPrice, max: params.buyRequest.maxPrice },
         },
         messageId: `round-${roundCount}-buyer-${params.buyRequest.id}`,
-      });
-
-      // Log buyer message to negotiation room
-      await sendMessage({
-        roomId: params.roomId,
-        senderAgentId: params.buyerAgentId,
-        content: buyerResponse,
-        messageType: 'negotiation',
-        metadata: {
-          roundNumber: roundCount,
-          source: 'ai-generated',
-        },
       });
 
       // Log seller response to negotiation room
@@ -263,53 +310,48 @@ Your response:`;
         currentHistory.push({ role: 'buyer', content: buyerResponse });
         currentHistory.push({ role: 'seller', content: sellerResponseText });
 
-        // Check if buyer's response indicates a decision
-        const buyerDecision = detectDecisionCriteria(buyerResponse);
+        // Check if seller's response indicates acceptance/decision
+        const sellerDecision = detectDecisionCriteria(sellerResponseText);
 
-        // If buyer proposed a price, check mutual satisfaction
-        if (buyerDecision.agreedPrice) {
-          const mutualCheck = checkMutualSatisfaction({
-            proposedPrice: buyerDecision.agreedPrice,
-            buyerBudget: { min: params.buyRequest.minPrice, max: params.buyRequest.maxPrice },
-            sellerPrice: { base: params.listing.basePrice, expected: params.listing.expectedPrice },
-          });
+        // If seller accepted the price, end negotiation immediately
+        if (sellerDecision.hasDecision && (sellerDecision.decisionType === 'accepted' || sellerDecision.decisionType === 'price_agreed')) {
+          const agreedPrice = sellerDecision.agreedPrice || params.listing.basePrice;
 
-          console.log(`   Buyer mutual satisfaction check: ${mutualCheck.isSatisfied ? '✅' : '❌'} ${mutualCheck.reason}`);
-
-          if (mutualCheck.isSatisfied && buyerDecision.hasDecision) {
-            console.log(`✅ Buyer made satisfactory decision at ${buyerDecision.agreedPrice} HBAR`);
-
-            await prisma.negotiationRoom.update({
-              where: { id: params.roomId },
-              data: {
-                status: 'COMPLETED',
-                agreedPrice: buyerDecision.agreedPrice,
-              },
-            });
-
-            io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
-              roomId: params.roomId,
-              decisionType: 'price_agreed',
-              agreedPrice: buyerDecision.agreedPrice,
-              reason: mutualCheck.reason,
-            });
-
-            break;
-          }
-        }
-
-        if (buyerDecision.hasDecision && buyerDecision.decisionType === 'rejected') {
-          console.log(`✅ Buyer rejected the offer`);
+          console.log(`✅ Seller accepted the deal at ${agreedPrice} HBAR`);
 
           await prisma.negotiationRoom.update({
             where: { id: params.roomId },
-            data: { status: 'COMPLETED' },
+            data: {
+              status: 'COMPLETED',
+              agreedPrice,
+            },
           });
 
           io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
             roomId: params.roomId,
-            decisionType: buyerDecision.decisionType,
-            agreedPrice: buyerDecision.agreedPrice,
+            decisionType: 'price_agreed',
+            agreedPrice,
+            status: 'COMPLETED',
+            reason: `Seller accepted the offer at ${agreedPrice} HBAR`,
+          });
+
+          break;
+        }
+
+        // If seller rejected, end negotiation
+        if (sellerDecision.hasDecision && sellerDecision.decisionType === 'rejected') {
+          console.log(`✅ Seller rejected the offer`);
+
+          await prisma.negotiationRoom.update({
+            where: { id: params.roomId },
+            data: { status: 'REJECTED' },
+          });
+
+          io.to(`negotiation:${params.roomId}`).emit('negotiation:concluded', {
+            roomId: params.roomId,
+            decisionType: 'rejected',
+            status: 'REJECTED',
+            reason: 'Seller rejected the offer',
           });
 
           break;

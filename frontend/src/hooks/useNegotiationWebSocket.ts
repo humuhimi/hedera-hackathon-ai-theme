@@ -99,8 +99,14 @@ export function useNegotiationWebSocket({
     })
 
     // Listen for negotiation conclusion
-    socket.on('negotiation:concluded', (data: NegotiationConcluded) => {
+    socket.on('negotiation:concluded', (data: NegotiationConcluded & { status?: string }) => {
       console.log('✅ Negotiation concluded:', data)
+
+      // Update status if provided
+      if (data.status) {
+        onStatusChangedRef.current?.(data.status)
+      }
+
       onConcludedRef.current?.(data)
     })
 
