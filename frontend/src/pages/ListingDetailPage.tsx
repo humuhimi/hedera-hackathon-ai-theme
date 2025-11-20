@@ -12,6 +12,8 @@ interface Listing {
   status: string;
   createdAt: string;
   transactionId: string;
+  negotiationRoomId: string | null;
+  negotiationRoomStatus: string | null;
 }
 
 export function ListingDetailPage() {
@@ -193,6 +195,47 @@ export function ListingDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Negotiation Room Section */}
+        {listing.negotiationRoomId && (
+          <div className="mt-6 bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
+              <h3 className="text-white font-semibold">Negotiation Room</h3>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Room Status</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                    listing.negotiationRoomStatus === 'ACTIVE'
+                      ? 'bg-green-100 text-green-700'
+                      : listing.negotiationRoomStatus === 'WAITING'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {listing.negotiationRoomStatus === 'WAITING'
+                      ? 'Waiting for Buyer'
+                      : listing.negotiationRoomStatus}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-500">
+                  Room ID: {listing.negotiationRoomId.slice(0, 8)}...
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                {listing.negotiationRoomStatus === 'WAITING'
+                  ? 'A negotiation room has been created for this listing. Once a buyer matches with your listing, negotiations can begin here.'
+                  : 'A buyer has joined the negotiation room. Click below to start negotiating.'}
+              </p>
+              <button
+                onClick={() => navigate(`/negotiation/${listing.negotiationRoomId}`)}
+                className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+              >
+                Go to Negotiation Room
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

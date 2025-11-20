@@ -1,20 +1,24 @@
 // Load environment variables FIRST before any other imports
-import 'dotenv/config';
+// IMPORTANT: override=true makes .env values take precedence over shell env vars
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 
 import express, { Request } from 'express';
 import cors from 'cors';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
 import type { IncomingMessage, ClientRequest, ServerResponse } from 'http';
+import { app, httpServer, io } from './socket';
 import authRoutes from './routes/auth.routes.js';
 import agentRoutes from './routes/agent.routes.js';
 import marketplaceRoutes from './routes/marketplace.routes.js';
+import negotiationRoutes from './routes/negotiation.routes.js';
+import userRoutes from './routes/user.routes.js';
 import { verifyToken } from './services/jwt.service.js';
 import { agentService } from './services/agent.service.js';
+import { PrismaClient } from '@prisma/client';
 
-const app = express();
-const httpServer = createServer(app);
+const prisma = new PrismaClient();
+
 const PORT = process.env.PORT;
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const ELIZAOS_URL = process.env.ELIZAOS_URL;
@@ -33,26 +37,74 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/agents', agentRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/negotiation', negotiationRoutes);
+app.use('/api/user', userRoutes);
 
 // A2A Protocol Proxy - Forward /agents/*/a2a/** requests to ElizaOS server
+// Maps erc8004AgentId (on-chain) to elizaAgentId (ElizaOS runtime)
 // IMPORTANT: Must be registered AFTER /agents routes to avoid conflicts
-app.use('/agents/:agentId/a2a', createProxyMiddleware({
+app.use('/agents/:agentId/a2a', async (req, res, next) => {
+  const erc8004AgentId = parseInt(req.params.agentId, 10);
+
+  if (isNaN(erc8004AgentId)) {
+    res.status(400).json({ error: 'Invalid agent ID' });
+    return;
+  }
+
+  try {
+    // Look up elizaAgentId from database using erc8004AgentId
+    const agent = await prisma.agent.findFirst({
+      where: { erc8004AgentId: erc8004AgentId },
+      select: { elizaAgentId: true }
+    });
+
+    if (!agent || !agent.elizaAgentId) {
+      res.status(404).json({ error: 'Agent not found or not registered with ElizaOS' });
+      return;
+    }
+
+    // Store elizaAgentId for proxy to use
+    (req as any).elizaAgentId = agent.elizaAgentId;
+    next();
+  } catch (error) {
+    console.error('❌ A2A Proxy DB Error:', error);
+    res.status(500).json({ error: 'Failed to resolve agent' });
+  }
+}, createProxyMiddleware({
   target: ELIZAOS_URL,
   changeOrigin: true,
   pathRewrite: (path, req) => {
-    // Reconstruct the full path including the agentId
+    // Replace erc8004AgentId with elizaAgentId in the path
     const expressReq = req as Request;
-    return expressReq.originalUrl || path;
+    const elizaAgentId = (expressReq as any).elizaAgentId;
+    const erc8004AgentId = expressReq.params.agentId;
+
+    // Rewrite: /agents/{erc8004AgentId}/a2a/... -> /agents/{elizaAgentId}/a2a/...
+    const originalUrl = expressReq.originalUrl || path;
+    const newPath = originalUrl.replace(`/agents/${erc8004AgentId}/`, `/agents/${elizaAgentId}/`);
+    return newPath;
   },
   on: {
     proxyReq: (proxyReq: ClientRequest, req: IncomingMessage): void => {
-      const targetUrl = new URL(ELIZAOS_URL);
+      const targetUrl = new URL(ELIZAOS_URL!);
       proxyReq.setHeader('Host', targetUrl.host);
       const expressReq = req as Request;
-      console.log(`🔄 Proxying A2A: ${req.method} ${expressReq.originalUrl} -> ${ELIZAOS_URL}${expressReq.originalUrl}`);
+      const elizaAgentId = (expressReq as any).elizaAgentId;
+      const erc8004AgentId = expressReq.params.agentId;
+      console.log(`🔄 Proxying A2A: erc8004#${erc8004AgentId} -> eliza#${elizaAgentId}`);
     },
-    proxyRes: (proxyRes: IncomingMessage): void => {
+    proxyRes: (proxyRes: IncomingMessage, req: IncomingMessage, res: ServerResponse): void => {
       console.log(`✅ A2A Response: ${proxyRes.statusCode}`);
+      console.log(`   Headers:`, JSON.stringify(proxyRes.headers));
+
+      // Log response body for debugging
+      let body = '';
+      proxyRes.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      proxyRes.on('end', () => {
+        console.log(`   Body preview: ${body.substring(0, 200)}${body.length > 200 ? '...' : ''}`);
+      });
     },
     error: (err: Error, _req: IncomingMessage, res: ServerResponse): void => {
       console.error('❌ A2A Proxy Error:', err.message);
@@ -69,18 +121,6 @@ app.use('/agents/:agentId/a2a', createProxyMiddleware({
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-
-
-
-// Socket.IO Server (for frontend connections)
-const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: FRONTEND_URL,
-    credentials: true,
-  },
-});
-
-
 
 // Frontend Socket.IO authentication middleware
 io.use(async (socket, next) => {
@@ -191,6 +231,30 @@ io.on('connection', (socket) => {
   socket.on('agent:leave', ({ channelId }) => {
     socket.leave(`channel:${channelId}`);
     console.log(`👋 User ${socket.data.userId} left channel ${channelId}`);
+  });
+
+  // Join buyRequest room to receive progress updates
+  socket.on('buyRequest:join', ({ buyRequestId }) => {
+    socket.join(`buyRequest:${buyRequestId}`);
+    console.log(`📦 User ${socket.data.userId} joined buyRequest ${buyRequestId}`);
+  });
+
+  // Leave buyRequest room
+  socket.on('buyRequest:leave', ({ buyRequestId }) => {
+    socket.leave(`buyRequest:${buyRequestId}`);
+    console.log(`👋 User ${socket.data.userId} left buyRequest ${buyRequestId}`);
+  });
+
+  // Join negotiation room to receive messages
+  socket.on('negotiation:join', ({ roomId }) => {
+    socket.join(`negotiation:${roomId}`);
+    console.log(`🤝 User ${socket.data.userId} joined negotiation ${roomId}`);
+  });
+
+  // Leave negotiation room
+  socket.on('negotiation:leave', ({ roomId }) => {
+    socket.leave(`negotiation:${roomId}`);
+    console.log(`👋 User ${socket.data.userId} left negotiation ${roomId}`);
   });
 
   socket.on('disconnect', () => {

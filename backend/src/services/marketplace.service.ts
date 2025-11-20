@@ -8,6 +8,7 @@ import {
   AccountId,
   PrivateKey,
   ContractExecuteTransaction,
+  ContractCallQuery,
   ContractFunctionParameters,
   ContractId,
 } from "@hashgraph/sdk";
@@ -16,9 +17,14 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const MARKETPLACE_CONTRACT_ID = process.env.MARKETPLACE_CONTRACT_ID;
+const ERC8004_IDENTITY_REGISTRY = process.env.ERC8004_IDENTITY_REGISTRY;
 
 if (!MARKETPLACE_CONTRACT_ID) {
   throw new Error("MARKETPLACE_CONTRACT_ID not set in environment");
+}
+
+if (!ERC8004_IDENTITY_REGISTRY) {
+  throw new Error("ERC8004_IDENTITY_REGISTRY not set in environment");
 }
 
 /**
@@ -57,7 +63,7 @@ export async function createListing(params: {
 
     const tx = new ContractExecuteTransaction()
       .setContractId(ContractId.fromString(MARKETPLACE_CONTRACT_ID))
-      .setGas(300000)
+      .setGas(500000)
       .setFunction("createListing", functionParams);
 
     const txResponse = await tx.execute(client);
@@ -84,17 +90,89 @@ export async function createListing(params: {
       },
     });
 
+    // Get seller's A2A endpoint and create NegotiationRoom
+    let negotiationRoomId: string | undefined;
+    try {
+      const a2aInfo = await getAgentA2AEndpoint(Number(params.sellerAgentId));
+      const room = await prisma.negotiationRoom.create({
+        data: {
+          listingId: listingId.toString(),
+          sellerAgentId: Number(params.sellerAgentId),
+          sellerA2AEndpoint: a2aInfo.a2aEndpoint,
+          status: "WAITING",
+        },
+      });
+      negotiationRoomId = room.id;
+      console.log(`📦 Created NegotiationRoom ${room.id} for listing ${listingId}`);
+    } catch (roomError) {
+      console.error("Failed to create NegotiationRoom:", roomError);
+      // Don't fail the listing creation if room creation fails
+    }
+
     return {
       success: true,
       listingId: listingId?.toString(),
       transactionId: transactionId,
       fee: Number(record.transactionFee.toTinybars()) / 100_000_000,
+      negotiationRoomId,
     };
   } catch (error) {
     console.error("Error creating listing:", error);
     throw error;
   } finally {
     client.close();
+  }
+}
+
+/**
+ * Get all listings from database with optional filters
+ */
+export async function getListings(params?: {
+  status?: string;
+  sellerAgentId?: number;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  try {
+    const where: any = {};
+
+    if (params?.status) {
+      where.status = params.status;
+    }
+
+    if (params?.sellerAgentId) {
+      where.sellerAgentId = params.sellerAgentId;
+    }
+
+    if (params?.search) {
+      where.OR = [
+        { title: { contains: params.search } },
+        { description: { contains: params.search } },
+      ];
+    }
+
+    const listings = await prisma.listing.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: params?.limit || 100,
+      skip: params?.offset || 0,
+    });
+
+    return listings.map(listing => ({
+      listingId: listing.listingId,
+      sellerAgentId: listing.sellerAgentId,
+      title: listing.title,
+      description: listing.description,
+      basePrice: listing.basePrice,
+      expectedPrice: listing.expectedPrice,
+      status: listing.status,
+      createdAt: listing.createdAt.toISOString(),
+      transactionId: listing.transactionId,
+    }));
+  } catch (error) {
+    console.error("Error getting listings:", error);
+    throw error;
   }
 }
 
@@ -113,6 +191,17 @@ export async function getListing(listingId: number) {
       throw new Error(`Listing ${listingId} not found`);
     }
 
+    // Get the associated NegotiationRoom
+    const negotiationRoom = await prisma.negotiationRoom.findUnique({
+      where: {
+        listingId: listingId.toString(),
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
     return {
       listingId: listing.listingId,
       sellerAgentId: listing.sellerAgentId.toString(),
@@ -123,10 +212,102 @@ export async function getListing(listingId: number) {
       status: listing.status,
       createdAt: listing.createdAt.toISOString(),
       transactionId: listing.transactionId,
+      negotiationRoomId: negotiationRoom?.id || null,
+      negotiationRoomStatus: negotiationRoom?.status || null,
     };
   } catch (error) {
     console.error("Error getting listing:", error);
     throw error;
+  }
+}
+
+/**
+ * Get listing with on-chain verification
+ * Fetches from DB and verifies against blockchain data
+ */
+export async function getListingVerified(listingId: number) {
+  const operatorId = process.env.HEDERA_MANAGER_ACCOUNT_ID;
+  const operatorKey = process.env.HEDERA_MANAGER_PRIVATE_KEY;
+
+  if (!operatorId || !operatorKey) {
+    throw new Error("HEDERA_MANAGER_ACCOUNT_ID and HEDERA_MANAGER_PRIVATE_KEY must be set");
+  }
+
+  const client = Client.forTestnet();
+  client.setOperator(
+    AccountId.fromString(operatorId),
+    PrivateKey.fromStringECDSA(operatorKey)
+  );
+
+  try {
+    // Get from DB first
+    const dbListing = await prisma.listing.findUnique({
+      where: {
+        listingId: listingId.toString(),
+      },
+    });
+
+    if (!dbListing) {
+      throw new Error(`Listing ${listingId} not found in database`);
+    }
+
+    // Fetch from blockchain for verification
+    const params = new ContractFunctionParameters().addUint256(listingId);
+
+    const query = new ContractCallQuery()
+      .setContractId(ContractId.fromString(MARKETPLACE_CONTRACT_ID!))
+      .setGas(100000)
+      .setFunction("getListing", params);
+
+    const result = await query.execute(client);
+
+    // Parse on-chain listing data
+    // Listing struct: sellerAgentId, title, description, basePrice, expectedPrice, status, timestamp
+    const onChainSellerAgentId = result.getUint256(0);
+    const onChainTitle = result.getString(1);
+    const onChainBasePrice = Number(result.getUint256(3)) / 100_000_000; // tinybar to HBAR
+    const onChainExpectedPrice = Number(result.getUint256(4)) / 100_000_000;
+    const onChainStatus = result.getUint8(5); // 0=OPEN, 1=RESERVED, 2=COMPLETED, 3=CANCELLED
+
+    const statusMap: { [key: number]: string } = {
+      0: "OPEN",
+      1: "RESERVED",
+      2: "COMPLETED",
+      3: "CANCELLED",
+    };
+
+    // Verify data integrity
+    const verified =
+      dbListing.sellerAgentId === Number(onChainSellerAgentId) &&
+      dbListing.title === onChainTitle &&
+      Math.abs(dbListing.basePrice - onChainBasePrice) < 0.0001 &&
+      Math.abs(dbListing.expectedPrice - onChainExpectedPrice) < 0.0001;
+
+    return {
+      listingId: dbListing.listingId,
+      sellerAgentId: dbListing.sellerAgentId,
+      title: dbListing.title,
+      description: dbListing.description,
+      basePrice: dbListing.basePrice,
+      expectedPrice: dbListing.expectedPrice,
+      status: dbListing.status,
+      createdAt: dbListing.createdAt.toISOString(),
+      transactionId: dbListing.transactionId,
+      // Verification info
+      verified,
+      onChain: {
+        sellerAgentId: Number(onChainSellerAgentId),
+        title: onChainTitle,
+        basePrice: onChainBasePrice,
+        expectedPrice: onChainExpectedPrice,
+        status: statusMap[onChainStatus] || "UNKNOWN",
+      },
+    };
+  } catch (error) {
+    console.error("Error getting verified listing:", error);
+    throw error;
+  } finally {
+    client.close();
   }
 }
 
@@ -158,7 +339,7 @@ export async function createInquiry(params: {
 
     const tx = new ContractExecuteTransaction()
       .setContractId(ContractId.fromString(MARKETPLACE_CONTRACT_ID))
-      .setGas(300000)
+      .setGas(500000)
       .setFunction("createInquiry", functionParams);
 
     const txResponse = await tx.execute(client);
@@ -192,6 +373,102 @@ export async function createInquiry(params: {
     };
   } catch (error) {
     console.error("Error creating inquiry:", error);
+    throw error;
+  } finally {
+    client.close();
+  }
+}
+
+/**
+ * Get A2A endpoint for an agent from ERC-8004 registry
+ * Fetches tokenURI, retrieves IPFS metadata, and extracts A2A endpoint
+ */
+export async function getAgentA2AEndpoint(agentId: number) {
+  const operatorId = process.env.HEDERA_MANAGER_ACCOUNT_ID;
+  const operatorKey = process.env.HEDERA_MANAGER_PRIVATE_KEY;
+
+  if (!operatorId || !operatorKey) {
+    throw new Error("HEDERA_MANAGER_ACCOUNT_ID and HEDERA_MANAGER_PRIVATE_KEY must be set");
+  }
+
+  const client = Client.forTestnet();
+  client.setOperator(
+    AccountId.fromString(operatorId),
+    PrivateKey.fromStringECDSA(operatorKey)
+  );
+
+  try {
+    // Get tokenURI from ERC-8004 contract
+    const params = new ContractFunctionParameters().addUint256(agentId);
+
+    const query = new ContractCallQuery()
+      .setContractId(ContractId.fromString(ERC8004_IDENTITY_REGISTRY!))
+      .setGas(100000)
+      .setFunction("tokenURI", params);
+
+    const result = await query.execute(client);
+    const tokenURI = result.getString(0);
+
+    if (!tokenURI) {
+      throw new Error(`No tokenURI found for agent ${agentId}`);
+    }
+
+    // Fetch IPFS metadata
+    // Convert ipfs:// to gateway URL
+    const ipfsGateway = "https://gateway.pinata.cloud/ipfs/";
+    const metadataUrl = tokenURI.replace("ipfs://", ipfsGateway);
+
+    const metadataResponse = await fetch(metadataUrl);
+    if (!metadataResponse.ok) {
+      throw new Error(`Failed to fetch agent metadata from ${metadataUrl}`);
+    }
+
+    const metadata = await metadataResponse.json();
+
+    // Find A2A endpoint in endpoints array (this is the Agent Card URL)
+    const agentCardEntry = metadata.endpoints?.find(
+      (ep: { name: string; endpoint: string }) => ep.name === 'a2a'
+    );
+
+    if (!agentCardEntry) {
+      throw new Error(`No A2A agent card URL found for agent ${agentId}`);
+    }
+
+    // Fetch the Agent Card to get the actual messaging endpoint
+    console.log(`📋 Fetching Agent Card from: ${agentCardEntry.endpoint}`);
+    const agentCardResponse = await fetch(agentCardEntry.endpoint);
+    if (!agentCardResponse.ok) {
+      throw new Error(`Failed to fetch agent card from ${agentCardEntry.endpoint}`);
+    }
+
+    const agentCard = await agentCardResponse.json();
+
+    // In A2A v0.3.0, the messaging endpoint is in the "url" field
+    let messagingEndpoint = agentCard.url;
+
+    if (!messagingEndpoint) {
+      throw new Error(`No url (messaging endpoint) found in agent card for agent ${agentId}`);
+    }
+
+    // Replace backend proxy (port 4000) with direct ElizaOS access (port 3333) for agent-to-agent communication
+    messagingEndpoint = messagingEndpoint.replace(':4000', ':3333');
+
+    console.log(`✅ Resolved A2A messaging endpoint: ${messagingEndpoint}`);
+
+    return {
+      agentId,
+      tokenURI,
+      a2aEndpoint: messagingEndpoint,
+      a2aVersion: agentCardEntry.version || 'unknown',
+      metadata: {
+        name: metadata.name,
+        description: metadata.description,
+        agentType: metadata.agentType,
+        ownerDid: metadata.ownerDid,
+      },
+    };
+  } catch (error) {
+    console.error("Error getting agent A2A endpoint:", error);
     throw error;
   } finally {
     client.close();
