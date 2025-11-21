@@ -33,7 +33,7 @@ export async function getNegotiationRoom(roomId: string) {
  */
 export async function getNegotiationRoomByListing(listingId: number) {
   const room = await prisma.negotiationRoom.findUnique({
-    where: { listingId },
+    where: { listingId: String(listingId) },
     include: {
       messages: {
         orderBy: { createdAt: 'asc' },

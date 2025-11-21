@@ -12,6 +12,7 @@ interface BuyRequestProgress {
   sellerAgentId: number | null
   a2aEndpoint: string | null
   searchError: string | null
+  negotiationRoomId: string | null
 }
 
 interface UseBuyRequestWebSocketProps {

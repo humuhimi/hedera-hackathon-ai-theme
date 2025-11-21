@@ -9,6 +9,7 @@ export interface Agent {
   name: string;
   description?: string;
   status: 'active' | 'paused';
+  channelId?: string;
   createdAt: string;
   updatedAt: string;
   // ERC-8004 blockchain registration

@@ -1,8 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Agent, AgentType } from '../types/agent'
-import { api } from '../services/api'
+import { api, type Agent as ApiAgent } from '../services/api'
 import { sessionManager } from '../services/sessionManager'
 import { useAuth } from '../contexts/AuthContext'
+
+const AGENT_ICON_MAP: Record<AgentType, string> = {
+  give: '💰',
+  want: '🛒',
+}
+
+const mapApiAgentToUiAgent = (apiAgent: ApiAgent): Agent => ({
+  id: apiAgent.id,
+  type: apiAgent.type as AgentType,
+  name: apiAgent.name,
+  status: apiAgent.status,
+  icon: AGENT_ICON_MAP[apiAgent.type as AgentType],
+  inquiries: 0,
+})
 
 export function useAgents() {
   const { isAuthenticated, user } = useAuth()
@@ -18,7 +32,7 @@ export function useAgents() {
       if (!session?.token) return
       
       const fetchedAgents = await api.getAgents(session.token)
-      setAgents(fetchedAgents)
+      setAgents(fetchedAgents.map(mapApiAgentToUiAgent))
     } catch (error) {
       console.error('Failed to load agents:', error)
     } finally {

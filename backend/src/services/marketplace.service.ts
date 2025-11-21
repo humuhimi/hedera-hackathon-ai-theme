@@ -423,7 +423,7 @@ export async function getAgentA2AEndpoint(agentId: number) {
       throw new Error(`Failed to fetch agent metadata from ${metadataUrl}`);
     }
 
-    const metadata = await metadataResponse.json();
+    const metadata = await metadataResponse.json() as any;
 
     // Find A2A endpoint in endpoints array (this is the Agent Card URL)
     const agentCardEntry = metadata.endpoints?.find(
@@ -441,7 +441,7 @@ export async function getAgentA2AEndpoint(agentId: number) {
       throw new Error(`Failed to fetch agent card from ${agentCardEntry.endpoint}`);
     }
 
-    const agentCard = await agentCardResponse.json();
+    const agentCard = await agentCardResponse.json() as any;
 
     // In A2A v0.3.0, the messaging endpoint is in the "url" field
     let messagingEndpoint = agentCard.url;

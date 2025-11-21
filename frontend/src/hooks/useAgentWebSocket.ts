@@ -30,12 +30,17 @@ export function useAgentWebSocket({
   const socketRef = useRef<Socket | null>(null)
   const onUserMessageRef = useRef(onUserMessage)
   const onAgentMessageRef = useRef(onAgentMessage)
+  const channelIdRef = useRef<string | null>(agent?.channelId ?? null)
 
   // Update refs when callbacks change
   useEffect(() => {
     onUserMessageRef.current = onUserMessage
     onAgentMessageRef.current = onAgentMessage
   }, [onUserMessage, onAgentMessage])
+
+  useEffect(() => {
+    channelIdRef.current = agent?.channelId ?? null
+  }, [agent?.channelId])
 
   useEffect(() => {
     const session = sessionManager.get()
@@ -85,6 +90,7 @@ export function useAgentWebSocket({
 
     socket.on('agent:joined', ({ agentId: joinedAgentId, channelId }) => {
       console.log(`📢 Joined channel ${channelId} for agent ${joinedAgentId}`)
+      channelIdRef.current = channelId ?? channelIdRef.current
     })
 
     // Listen for user's own messages echoed back
@@ -111,11 +117,13 @@ export function useAgentWebSocket({
 
     // Cleanup on unmount
     return () => {
-      if (agent?.channelId) {
-        socket.emit('agent:leave', { channelId: agent.channelId })
+      const channelId = channelIdRef.current ?? agent?.channelId
+      if (channelId) {
+        socket.emit('agent:leave', { channelId })
       }
       socket.disconnect()
       socketRef.current = null
+      channelIdRef.current = null
     }
   }, [agentId, agent])
 

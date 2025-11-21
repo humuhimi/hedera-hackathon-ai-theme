@@ -214,7 +214,7 @@ Your response:`;
         throw new Error(`OpenAI API error: ${openaiResponse.status} ${errorText}`);
       }
 
-      const openaiData = await openaiResponse.json();
+      const openaiData = await openaiResponse.json() as any;
       const buyerResponse = openaiData.choices[0].message.content.trim();
 
       console.log(`   Buyer generated response: ${buyerResponse.substring(0, 100)}...`);

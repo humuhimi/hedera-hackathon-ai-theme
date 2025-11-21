@@ -74,7 +74,7 @@ export async function sendA2AMessage(params: {
       throw new Error(`A2A request failed: ${response.status} ${response.statusText}`);
     }
 
-    const result: A2AResponse = await response.json();
+    const result = await response.json() as A2AResponse;
 
     const responseText = result.result.parts[0]?.text || 'No response';
     console.log(`✅ Received A2A response:`);
