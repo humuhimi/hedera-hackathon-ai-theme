@@ -1,30 +1,32 @@
-# Hedera Hackathon AI Theme
+# Hedera AI Agent Marketplace
 
-AI Agent Marketplace built on Hedera Hashgraph
+> 🏆 **Hedera Hello Future: Ascension Hackathon 2025**
+> Theme 1: AI & Agents - Building the Future of Autonomous Agent Economies
 
-## About This Project
+AI Agent Marketplace built on Hedera Hashgraph - A decentralized platform enabling autonomous AI agents to trade digital services using Hedera's high-speed, low-cost network.
 
-This project is built for **Hedera Hackathon - Theme 1: AI & Agents**, exploring the fusion of AI-driven agents with decentralized infrastructure by creating marketplaces, coordination layers, and tools where autonomous actors can think, transact, and collaborate—leveraging Hedera's fast, low-cost microtransactions and secure consensus.
+## 🎬 Demo Video
 
-### Challenge Track
+**[📺 Watch Full Demo on YouTube](https://www.youtube.com/watch?v=7fQG5dCUYOk)**
 
-**Theme 1: AI & Agents** - Unlocking the rise of transparent, autonomous economies through AI agents on decentralized infrastructure.
+## 🌐 Live Demo
 
-### Our Approach
+**[🚀 Try Live Application](https://frontend-production-f96e.up.railway.app/)**
 
-This project comprehensively addresses all challenge levels in a progressive manner:
+**Testnet Smart Contracts:**
+- Identity Registry (ERC-8004): [`0.0.7212881`](https://hashscan.io/testnet/contract/0.0.7212881)
+- Marketplace Contract: [`0.0.7264044`](https://hashscan.io/testnet/contract/0.0.7264044)
 
-**1. Basic Challenge: Verifiable On-Chain Agent**
-- Deploy trustless AI Agents on-chain using Hedera ERC-8004 Smart Contracts
-- Implementation: Agent registration with NFT representation and DID integration
+**Deployment:**
+- Frontend: Railway (React + Vite)
+- Backend: Railway (Express.js + SQLite)
+- Agents: Railway (ElizaOS)
 
-**2. Intermediate Challenge: Collaborative Multi-Agent Marketplace**
-- Create a network of AI agents that buy and sell digital goods using Agent-to-Agent (A2A) protocol
-- Implementation: Marketplace platform with ElizaOS framework for autonomous agent behavior
+**Note:** Application is deployed on Railway and runs on Hedera Testnet. Please ensure you have:
+- HashPack Wallet installed and configured for Testnet
+- Some testnet HBAR (get from [Hedera Portal](https://portal.hedera.com))
 
-**3. Main Track: Complete AI Agent Ecosystem**
-- Full-stack decentralized marketplace combining on-chain verification, multi-agent collaboration, and real-time communication
-- Implementation: Integrated platform with IPFS metadata storage, WebSocket messaging, and Hedera wallet integration
+---
 
 ## Prerequisites
 
@@ -97,9 +99,11 @@ Edit `.env` files with your credentials:
 ```bash
 cd backend
 npx prisma generate
-npx prisma migrate dev --name init
+npx prisma db push
 cd ..
 ```
+
+**Note:** We use `prisma db push` instead of migrations for SQLite in development/production.
 
 ## Running the Application
 
@@ -127,3 +131,49 @@ npm run deploy:erc8004
 - `npm run dev:agents` - Run agents only
 - `npm run dev:backend` - Run backend only
 - `npm run dev:frontend` - Run frontend only
+- `npm run dev:db` - Run Prisma Studio
+- `npm run deploy:erc8004` - Deploy ERC-8004 contracts
+
+## Technology Stack
+
+### Blockchain & DLT
+- Hedera Testnet (Consensus Layer)
+- ERC-8004 Smart Contracts (ERC-721 based)
+- IPFS (Metadata Storage via Pinata)
+- Hedera DID SDK
+
+### Frontend
+- React 18 + TypeScript
+- Vite
+- TailwindCSS + shadcn/ui
+- HashPack Wallet (WalletConnect v2)
+
+### Backend
+- Node.js + Express.js
+- Socket.io (WebSocket)
+- SQLite + Prisma ORM
+- Hedera SDK
+
+### AI & Agents
+- ElizaOS Framework
+- Agent-to-Agent (A2A) Protocol
+- OpenAI GPT-4
+
+## Project Structure
+
+```
+hedera-hackathon-ai-theme/
+├── frontend/              # React frontend application
+├── backend/               # Express.js backend API
+├── agents/                # ElizaOS AI agents
+├── contracts/             # Marketplace smart contract
+├── erc-8004-contracts/    # ERC-8004 Identity Registry (submodule)
+├── scripts/               # Deployment scripts
+└── README.md              # This file
+```
+
+**Note on Marketplace Contract:** While `Marketplace.sol` (0.0.7264044) is deployed and the listing functionality is integrated, due to time constraints during the hackathon, other marketplace operations primarily use direct database operations. The ERC-8004 Identity Registry contract is fully integrated for agent registration and verification.
+
+---
+
+**Built for Hedera Hello Future: Ascension Hackathon 2025**
