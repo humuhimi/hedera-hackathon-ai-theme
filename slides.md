@@ -49,15 +49,16 @@ Autonomous AI agent economies face two critical barriers:
 ## 🔐 Trust Barrier: Agent Identity & Verification
 
 **Current State:**
-- No way to verify agent capabilities or identity
-- Anyone can claim "I'm a data analysis agent" without proof
-- No distinction between legitimate agents and malicious copies
-- Buyers must trust sellers blindly
+- No cryptographic proof of agent ownership
+- Agent metadata can be tampered with in centralized systems
+- Cannot verify if listed agents are authentic
+- No immutable record of agent identity and transactions
 
 **Impact:**
-- Human intervention required for every transaction
-- Fraud and impersonation risks
-- Cannot delegate decisions to AI agents
+- Buyers cannot verify seller's legitimacy
+- Fraudulent listings cannot be detected
+- Human verification needed for every purchase
+- Cannot delegate buying decisions to AI agents
 
 ## 🤖 Autonomy Barrier: Agent-to-Agent Commerce
 
@@ -84,11 +85,15 @@ Autonomous AI agent economies face two critical barriers:
 
 # The Solution
 
+<div class="text-sm leading-tight space-y-1">
+
 **Hedera AI Agent Marketplace** - Solving Trust & Autonomy barriers through implementation:
 
 <v-clicks>
 
 ## 🔐 Breaking the Trust Barrier
+
+<div class="space-y-0.5">
 
 **ERC-8004 Smart Contracts on Hedera**
 - On-chain agent registration with NFT-based identity
@@ -101,11 +106,16 @@ Autonomous AI agent economies face two critical barriers:
 - Portable identity across platforms
 
 **IPFS Metadata Storage**
-- Permanent, tamper-proof agent metadata
-- Content-addressed storage linked to NFT
-- Verifiable capability descriptions
+- Permanent, tamper-proof agent metadata storage
+- Content-addressed (CID) linked to NFT
+- Agent Card includes: capabilities, A2A endpoint, description
+- Decentralized file system - no central server dependency
+
+</div>
 
 ## 🤖 Breaking the Autonomy Barrier
+
+<div class="space-y-0.5">
 
 **Agent-to-Agent (A2A) Protocol**
 - JSON-RPC 2.0 standard for agent communication
@@ -123,7 +133,11 @@ Autonomous AI agent economies face two critical barriers:
 - Autonomous transaction processing
 - No human intervention required
 
+</div>
+
 </v-clicks>
+
+</div>
 
 ---
 
@@ -169,10 +183,6 @@ Autonomous AI agent economies face two critical barriers:
 
 </div>
 
-<div v-click class="mt-8 text-center text-xl">
-🏆 <span class="text-yellow-500">First comprehensive implementation combining all three challenge levels</span>
-</div>
-
 ---
 
 # Feasibility 🎯
@@ -184,9 +194,13 @@ Autonomous AI agent economies face two critical barriers:
 ## 🚫 Why Not Web2?
 
 ❌ Centralized fees (30-40%)
+
 ❌ No trustless verification
+
 ❌ Platform can change rules
+
 ❌ No true ownership
+
 ❌ No cross-platform migration
 
 </div>
@@ -196,18 +210,16 @@ Autonomous AI agent economies face two critical barriers:
 ## ✅ Why Hedera?
 
 ✅ **Speed**: 10,000+ TPS, 3-5s finality
+
 ✅ **Cost**: $0.0001 per transaction
+
 ✅ **Sustainability**: Carbon-negative
+
 ✅ **Security**: aBFT consensus
+
 ✅ **ERC-8004**: Agent verification
 
 </div>
-
-</div>
-
-<div v-click class="mt-8 p-4 bg-blue-500 bg-opacity-20 rounded text-center">
-
-**Production-Ready MVP**: Fully functional marketplace with real testnet transactions
 
 </div>
 
@@ -216,26 +228,40 @@ Autonomous AI agent economies face two critical barriers:
 # Technical Architecture
 
 ```mermaid
-graph TB
-    A[User - HashPack Wallet] -->|WalletConnect| B[Frontend - React]
-    B -->|REST API| C[Backend - Express.js]
-    B -->|WebSocket| C
-    C -->|Hedera SDK| D[Hedera Testnet]
-    C -->|Smart Contract| E[ERC-8004 Contracts]
-    C -->|Smart Contract| M[Marketplace Contract]
-    C -->|Storage| F[IPFS]
-    C -->|Database| G[SQLite]
-    C -->|Agent Framework| H[ElizaOS Agents]
-    H -->|A2A Protocol| H
-    E -->|NFT Minting| D
-    M -->|Listing/Trading| D
-    F -->|Metadata| D
+flowchart LR
+    subgraph User["👤 User Layer"]
+        A[HashPack Wallet]
+    end
 
-    style A fill:#4ade80
-    style D fill:#ff6b6b
-    style E fill:#4dabf7
-    style M fill:#4dabf7
-    style H fill:#ffd93d
+    subgraph App["💻 Application Layer"]
+        B[Frontend<br/>React + Vite]
+        C[Backend<br/>Express.js]
+        D[ElizaOS Agents<br/>AI Framework]
+        E[(SQLite<br/>Off-chain)]
+    end
+
+    subgraph Hedera["⚡ Hedera Layer"]
+        F[Hedera Testnet]
+        G[ERC-8004<br/>Agent Registry]
+        H[Marketplace<br/>Contract]
+        I[IPFS<br/>Metadata]
+    end
+
+    A -->|WalletConnect| B
+    B -->|REST/WebSocket| C
+    C --> E
+    C --> D
+    C -->|Hedera SDK| F
+    F --- G
+    F --- H
+    F --- I
+    D -->|A2A Protocol| D
+
+    style A fill:#4ade80,stroke:#2d6a4f,stroke-width:3px
+    style F fill:#ff6b6b,stroke:#c92a2a,stroke-width:3px
+    style G fill:#4dabf7,stroke:#1971c2,stroke-width:2px
+    style H fill:#4dabf7,stroke:#1971c2,stroke-width:2px
+    style D fill:#ffd93d,stroke:#f59f00,stroke-width:3px
 ```
 
 ---
@@ -290,7 +316,9 @@ graph TB
 
 ## Agent-to-Agent Communication Standard
 
-<v-clicks>
+<div class="grid grid-cols-2 gap-8 mt-8">
+
+<div v-click>
 
 **Protocol Stack:**
 - **@a2a-js/sdk** - Official A2A JavaScript SDK
@@ -304,13 +332,19 @@ graph TB
 - ✅ Decision criteria detection
 - ✅ Mutual satisfaction checking
 
+</div>
+
+<div v-click>
+
 **Use Cases:**
 - Buyer agent discovers seller agent via Agent Card
 - Autonomous negotiation with counter-offers
 - Automatic price agreement without human intervention
 - Transaction finalization through Hedera
 
-</v-clicks>
+</div>
+
+</div>
 
 ---
 
@@ -366,24 +400,20 @@ graph TB
 
 <v-clicks>
 
-**🔐 Agent Reputation System**
-- Multi-dimensional trust scoring
-- Performance, fairness, and behavior metrics
-- Protect weaker agents from exploitation
+**🔐 Verifiable Credentials for Participation Control**
+- User VC-based marketplace access control
+- Agent VC-based capability verification
+- Automated eligibility checking for trades
 
-**🌐 Cross-Platform Agent Identity**
-- Verifiable Credentials for agent capabilities
-- Multi-service agent portability
-- Responsibility tracking across platforms
+**📊 Reputation-Based Auto-Judgment System**
+- Leverage ERC-8004 Reputation Registry for on-chain reputation storage
+- Transaction history analysis between different agent personalities
+- Automated trustworthiness assessment based on past behavior
 
-**🔗 ActivityPub 2.0 Integration**
-- Federated agent discovery
-- Decentralized social network for agents
-- Interoperability with Fediverse ecosystem
-
-**🚀 Mainnet Deployment**
-- Production-ready marketplace on Hedera mainnet
-- Enterprise-grade features and security
+**💰 AP2 (Agent Payment Protocol) Integration**
+- Autonomous payment execution by AI agents
+- Automated transaction settlement
+- Agent-to-agent value transfer
 
 </v-clicks>
 
@@ -400,11 +430,9 @@ graph TB
 **Hedera Consensus Service (HCS)**
 - Transaction ordering & immutable audit trail
 
-**Hedera Token Service (HTS)**
-- NFT minting for agents & token-based payments
-
 **Smart Contract Service**
-- ERC-8004 agent contracts & marketplace logic
+- ERC-8004 agent contracts (ERC-721 NFT)
+- Marketplace contract logic
 
 **File Service**
 - IPFS integration & metadata storage
@@ -420,103 +448,14 @@ graph TB
 - Automatic on first login
 
 **Transaction Types**
-- Agent registration (NFT mint)
-- Agent purchases (HTS transfers)
+- Agent registration (ERC-721 NFT via smart contract)
+- Marketplace transactions (listing, purchase)
 - Smart contract interactions
 - DID operations
 
-**TPS Contribution**
-- Current: ~10-50 TPS during active use
-- Scalable architecture supports 1000+ TPS
-
 </div>
 
 </div>
-
----
-
-# Potential Impact 📈
-
-## How This Could Help Hedera Ecosystem
-
-<v-clicks>
-
-**Account Growth Opportunity:**
-- Each user creates 1 Hedera account
-- Users can register multiple AI agents
-- More users = more accounts on Hedera
-
-**Transaction Activity:**
-- Agent registration (ERC-8004 NFT minting)
-- Agent purchases & transfers
-- A2A negotiations and trades
-- All leveraging Hedera's low-cost transactions ($0.0001)
-
-**Market Positioning:**
-- AI agent market projected at $47B by 2030
-- Potential to attract AI developers to Hedera
-- Showcase Hedera's speed & cost advantages
-
-**Note:** These are potential opportunities, not guarantees. Success depends on market adoption and ecosystem development.
-
-</v-clicks>
-
----
-
-# Validation ✅
-
-## Technical Implementation Proof
-
-<v-clicks>
-
-**✅ Deployed Smart Contracts on Hedera Testnet:**
-- Identity Registry: 0.0.7212881
-- Reputation Registry: 0.0.7212889
-- Validation Registry: 0.0.7212892
-- Marketplace Contract: 0.0.7264044
-
-**✅ Working Features:**
-- Agent registration with ERC-8004
-- A2A protocol with JSON-RPC 2.0
-- Real-time negotiation system
-- IPFS metadata storage
-- HashPack wallet integration
-
-**✅ Open Source:**
-- Full implementation available on GitHub
-- Complete documentation
-- Deployment scripts included
-
-</v-clicks>
-
----
-
-# Innovation Highlights 🚀
-
-<v-clicks>
-
-🆕 **ElizaOS + Hedera Integration**
-- Combining AI agent framework with blockchain consensus
-- Demonstrates potential for AI & blockchain synergy
-
-🔗 **ERC-8004 Implementation**
-- On-chain agent identity with NFT representation
-- Agent metadata and identity stored on-chain
-
-⚡ **A2A Protocol Integration**
-- Agent-to-agent communication with JSON-RPC 2.0
-- Autonomous negotiation and trading logic
-
-💡 **Hybrid On-Chain/Off-Chain Architecture**
-- On-chain: Identity, ownership, final transactions
-- Off-chain: AI processing, real-time communication
-- Balances cost and functionality
-
-🌐 **Working MVP on Testnet**
-- Addresses all 3 challenge levels
-- Functional smart contracts and agent system
-
-</v-clicks>
 
 ---
 layout: center
