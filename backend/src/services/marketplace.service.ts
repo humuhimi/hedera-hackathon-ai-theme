@@ -450,8 +450,11 @@ export async function getAgentA2AEndpoint(agentId: number) {
       throw new Error(`No url (messaging endpoint) found in agent card for agent ${agentId}`);
     }
 
-    // Replace backend proxy (port 4000) with direct ElizaOS access (port 3333) for agent-to-agent communication
-    messagingEndpoint = messagingEndpoint.replace(':4000', ':3333');
+    // Replace backend proxy with direct ElizaOS access for agent-to-agent communication
+    // Change both hostname (backend -> agents) and port (4000 -> 3333)
+    messagingEndpoint = messagingEndpoint
+      .replace('backend.railway.internal:4000', 'agents.railway.internal:3333')
+      .replace(':4000', ':3333');  // Fallback for other environments
 
     console.log(`✅ Resolved A2A messaging endpoint: ${messagingEndpoint}`);
 
