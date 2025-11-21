@@ -451,10 +451,10 @@ export async function getAgentA2AEndpoint(agentId: number) {
     }
 
     // Replace backend proxy with direct ElizaOS access for agent-to-agent communication
-    // Change both hostname (backend -> agents) and port (4000 -> 3333)
+    // Separate hostname and port replacement for reliability
     messagingEndpoint = messagingEndpoint
-      .replace('backend.railway.internal:4000', 'agents.railway.internal:3333')
-      .replace(':4000', ':3333');  // Fallback for other environments
+      .replace('backend.railway.internal', 'agents.railway.internal')  // Hostname: backend -> agents
+      .replace(':4000', ':3333');  // Port: 4000 -> 3333
 
     console.log(`✅ Resolved A2A messaging endpoint: ${messagingEndpoint}`);
 
