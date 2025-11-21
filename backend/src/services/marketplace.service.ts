@@ -16,8 +16,8 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const MARKETPLACE_CONTRACT_ID = process.env.MARKETPLACE_CONTRACT_ID;
-const ERC8004_IDENTITY_REGISTRY = process.env.ERC8004_IDENTITY_REGISTRY;
+const MARKETPLACE_CONTRACT_ID = process.env.MARKETPLACE_CONTRACT_ID!;
+const ERC8004_IDENTITY_REGISTRY = process.env.ERC8004_IDENTITY_REGISTRY!;
 
 if (!MARKETPLACE_CONTRACT_ID) {
   throw new Error("MARKETPLACE_CONTRACT_ID not set in environment");
