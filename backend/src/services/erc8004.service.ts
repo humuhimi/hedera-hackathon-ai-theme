@@ -46,7 +46,7 @@ class ERC8004Service {
 
   constructor() {
     // Load deployment info
-    const deploymentPath = path.join(process.cwd(), '..', 'erc8004-deployment-testnet.json');
+    const deploymentPath = path.join(process.cwd(), 'erc8004-deployment-testnet.json');
 
     if (!fs.existsSync(deploymentPath)) {
       throw new Error(
